@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HorasExtras.Application/HorasExtras.Application.csproj" />
+    <Project Path="src/HorasExtras.Domain/HorasExtras.Domain.csproj" />
+    <Project Path="src/HorasExtras.Infrastructure/HorasExtras.Infrastructure.csproj" />
+    <Project Path="src/HorasExtras.Web/HorasExtras.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HorasExtras.Domain.Tests/HorasExtras.Domain.Tests.csproj" />
+    <Project Path="tests/HorasExtras.Web.Tests/HorasExtras.Web.Tests.csproj" />
+  </Folder>
+</Solution>

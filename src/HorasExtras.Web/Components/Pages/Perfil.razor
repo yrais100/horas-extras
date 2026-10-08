@@ -1,0 +1,161 @@
+@page "/perfil"
+@attribute [Authorize]
+@inherits PaginaUsuario
+@inject PerfilService PerfilSvc
+@inject TimeProvider Reloj
+
+<PageTitle>Salario y recargos · Horas Extras</PageTitle>
+
+<h1 class="h4 mb-3">Salario y recargos</h1>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+@if (mensaje is not null)
+{
+    <div class="alert alert-success">@mensaje</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h6">Salario</h2>
+        <p class="small text-body-secondary">
+            El valor de cada hora sale de tu salario mensual dividido por las horas mensuales de ley, salvo que ingreses un valor hora manual.
+            Si te cambian el salario, agrégalo con la fecha desde la que rige: las horas anteriores se siguen liquidando con el salario anterior.
+        </p>
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3"><label class="form-label small">Vigente desde</label><input type="date" class="form-control" @bind="nuevoDesde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small">Salario mensual (COP)</label><input type="number" min="0" step="1000" class="form-control" @bind="nuevoSalario" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small">Valor hora manual (opcional)</label><input type="number" min="0" step="100" class="form-control" @bind="nuevoValorHora" /></div>
+            <div class="col-12 col-md-3"><button class="btn btn-primary w-100" @onclick="GuardarSalario">Guardar salario</button></div>
+        </div>
+        <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Vigente desde</th><th class="text-end">Salario</th><th class="text-end">Valor hora manual</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var s in salarios)
+                    {
+                        <tr>
+                            <td>@s.VigenteDesde.ToString("d MMM yyyy")</td>
+                            <td class="text-end">@Formato.Pesos(s.SalarioMensual)</td>
+                            <td class="text-end">@(s.ValorHoraManual is null ? "—" : Formato.Pesos(s.ValorHoraManual.Value))</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarSalario(s.Id)">Eliminar</button></td>
+                        </tr>
+                    }
+                    @if (salarios.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">Aún no has registrado tu salario.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (recargos is not null)
+{
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h6">Recargos y jornada nocturna</h2>
+            <label class="form-label small">Modo</label>
+            <select class="form-select mb-2" @bind="modo">
+                <option value="@ModoRecargos.Ley">Según la ley vigente en cada fecha (Colombia)</option>
+                <option value="@ModoRecargos.Manual">Valores manuales</option>
+            </select>
+
+            @if (modo == ModoRecargos.Ley)
+            {
+                <p class="small text-body-secondary mb-0">
+                    Hoy aplica: nocturno de @ley.InicioNocturno.ToString("HH:mm") a @ley.FinNocturno.ToString("HH:mm"),
+                    jornada de @ley.JornadaSemanal h semanales (divisor @ley.HorasMensuales h/mes),
+                    extra diurna +@ley.PctExtraDiurna %, extra nocturna +@ley.PctExtraNocturna %,
+                    dominical/festiva diurna +@ley.PctExtraDominicalDiurna % y nocturna +@ley.PctExtraDominicalNocturna %.
+                    Los cambios de ley se aplican solos según la fecha de cada hora.
+                </p>
+            }
+            else
+            {
+                <div class="row g-2">
+                    <div class="col-6 col-md-3"><label class="form-label small">Inicio nocturno</label><input type="time" class="form-control" @bind="recargos.InicioNocturno" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">Fin nocturno</label><input type="time" class="form-control" @bind="recargos.FinNocturno" /></div>
+                    <div class="col-12 col-md-6"><label class="form-label small">Horas mensuales (divisor del salario)</label><input type="number" class="form-control" @bind="recargos.HorasMensuales" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">% extra diurna</label><input type="number" class="form-control" @bind="recargos.PctExtraDiurna" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">% extra nocturna</label><input type="number" class="form-control" @bind="recargos.PctExtraNocturna" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">% dom./fest. diurna</label><input type="number" class="form-control" @bind="recargos.PctExtraDominicalDiurna" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">% dom./fest. nocturna</label><input type="number" class="form-control" @bind="recargos.PctExtraDominicalNocturna" /></div>
+                </div>
+                <button class="btn btn-outline-secondary mt-3 me-2" @onclick="CargarLey">Cargar valores de ley</button>
+            }
+            <button class="btn btn-primary mt-3" @onclick="GuardarRecargos">Guardar recargos</button>
+            <p class="small text-body-secondary mt-3 mb-0">
+                <span class="badge text-bg-warning">Revisar</span>
+                Valores de ley tomados del Código Sustantivo del Trabajo, la Ley 2101 de 2021 y la Ley 2466 de 2025.
+                Confírmalos con tu área de nómina o un abogado laboral.
+            </p>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<SalarioDto> salarios = [];
+    private EditableRecargos? recargos;
+    private ModoRecargos modo;
+    private ParametrosLegales ley = default!;
+    private DateOnly nuevoDesde;
+    private decimal nuevoSalario;
+    private decimal? nuevoValorHora;
+    private string? mensaje;
+
+    protected override async Task CargarAsync()
+    {
+        var hoy = ZonaHoraria.Hoy(Reloj);
+        ley = ValoresLey.Para(hoy);
+        nuevoDesde = Quincena.De(hoy).Desde;
+        salarios = await PerfilSvc.SalariosAsync(UsuarioId);
+        var r = await PerfilSvc.RecargosAsync(UsuarioId);
+        modo = r.Modo;
+        recargos = new(r);
+    }
+
+    private Task GuardarSalario() => Intentar(async () =>
+    {
+        mensaje = null;
+        await PerfilSvc.GuardarSalarioAsync(UsuarioId, new SalarioInput(nuevoDesde, nuevoSalario, nuevoValorHora));
+        salarios = await PerfilSvc.SalariosAsync(UsuarioId);
+        mensaje = "Salario guardado.";
+    });
+
+    private Task EliminarSalario(int id) => Intentar(async () =>
+    {
+        await PerfilSvc.EliminarSalarioAsync(UsuarioId, id);
+        salarios = await PerfilSvc.SalariosAsync(UsuarioId);
+    });
+
+    private void CargarLey()
+    {
+        recargos = new(new RecargosDto(ModoRecargos.Manual, ley.InicioNocturno, ley.FinNocturno, ley.HorasMensuales,
+            ley.PctExtraDiurna, ley.PctExtraNocturna, ley.PctExtraDominicalDiurna, ley.PctExtraDominicalNocturna));
+    }
+
+    private Task GuardarRecargos() => Intentar(async () =>
+    {
+        mensaje = null;
+        await PerfilSvc.GuardarRecargosAsync(UsuarioId, recargos!.ADto(modo));
+        mensaje = "Recargos guardados.";
+    });
+
+    private class EditableRecargos(RecargosDto d)
+    {
+        public TimeOnly InicioNocturno { get; set; } = d.InicioNocturno;
+        public TimeOnly FinNocturno { get; set; } = d.FinNocturno;
+        public decimal HorasMensuales { get; set; } = d.HorasMensuales;
+        public decimal PctExtraDiurna { get; set; } = d.PctExtraDiurna;
+        public decimal PctExtraNocturna { get; set; } = d.PctExtraNocturna;
+        public decimal PctExtraDominicalDiurna { get; set; } = d.PctExtraDominicalDiurna;
+        public decimal PctExtraDominicalNocturna { get; set; } = d.PctExtraDominicalNocturna;
+
+        public RecargosDto ADto(ModoRecargos modo) => new(modo, InicioNocturno, FinNocturno, HorasMensuales,
+            PctExtraDiurna, PctExtraNocturna, PctExtraDominicalDiurna, PctExtraDominicalNocturna);
+    }
+}

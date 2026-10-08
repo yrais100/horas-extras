@@ -1,0 +1,105 @@
+@page "/liquidar"
+@attribute [Authorize]
+@inherits PaginaUsuario
+@inject LiquidacionService Liquidacion
+
+<PageTitle>Liquidar · Horas Extras</PageTitle>
+
+<h1 class="h4 mb-3">Liquidar</h1>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-3"><label class="form-label small">Desde</label><input type="date" class="form-control" @bind="desde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small">Hasta</label><input type="date" class="form-control" @bind="hasta" /></div>
+            <div class="col-12 col-md-6 d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary" @onclick="QuincenaAnterior">← Anterior</button>
+                <button class="btn btn-outline-secondary" @onclick="QuincenaActual">Actual</button>
+                <button class="btn btn-primary" @onclick="Calcular">Liquidar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+@if (mensaje is not null)
+{
+    <div class="alert alert-success">@mensaje</div>
+}
+
+@if (resultado is not null)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h6 mb-3">@Formato.Fecha(resultado.Desde) – @Formato.Fecha(resultado.Hasta)</h2>
+            <ResumenLiquidacion Resultado="resultado" />
+            <p class="small text-body-secondary mt-2 mb-0">Valor hora actual: @Formato.Pesos(resultado.ValorHoraActual)</p>
+            <button class="btn btn-success mt-3" @onclick="Guardar">Guardar esta liquidación</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h6">Detalle por día</h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Día</th><th class="text-end">Diurnas</th><th class="text-end">Nocturnas</th><th class="text-end">Valor</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in resultado.Dias)
+                        {
+                            <tr>
+                                <td>
+                                    @Formato.Fecha(d.Fecha)
+                                    @if (d.DominicalOFestivo) { <span class="badge text-bg-info ms-1">Dom/Fest</span> }
+                                    @if (d.ExcedeLimiteDiario) { <span class="badge text-bg-warning ms-1">+2 h</span> }
+                                </td>
+                                <td class="text-end">@Formato.Horas(d.HorasDiurnas)</td>
+                                <td class="text-end">@Formato.Horas(d.HorasNocturnas)</td>
+                                <td class="text-end">@Formato.Pesos(d.Valor)</td>
+                            </tr>
+                        }
+                        @if (resultado.Dias.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-body-secondary">Sin registros en este periodo.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateOnly desde, hasta;
+    private ResultadoLiquidacion? resultado;
+    private string? mensaje;
+
+    protected override Task CargarAsync()
+    {
+        (desde, hasta) = Liquidacion.QuincenaActual();
+        return Calcular();
+    }
+
+    private Task QuincenaActual() => CargarAsync();
+
+    private Task QuincenaAnterior()
+    {
+        (desde, hasta) = Quincena.Anterior(new Periodo(desde, hasta));
+        return Calcular();
+    }
+
+    private Task Calcular()
+    {
+        mensaje = null;
+        return Intentar(async () => resultado = await Liquidacion.CalcularAsync(UsuarioId, new Periodo(desde, hasta)));
+    }
+
+    private Task Guardar() => Intentar(async () =>
+    {
+        await Liquidacion.GuardarAsync(UsuarioId, new Periodo(desde, hasta));
+        mensaje = "Liquidación guardada. La encuentras en Historial.";
+    });
+}

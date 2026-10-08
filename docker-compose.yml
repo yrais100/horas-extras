@@ -1,0 +1,21 @@
+# Levanta PostgreSQL y la aplicación: docker compose up --build  →  http://localhost:8080
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: horasextras
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - datos:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  web:
+    build: .
+    depends_on: [db]
+    environment:
+      ConnectionStrings__Default: "Host=db;Database=horasextras;Username=postgres;Password=postgres"
+    ports:
+      - "8080:8080"
+volumes:
+  datos:

@@ -1,0 +1,110 @@
+@page "/historial"
+@attribute [Authorize]
+@inherits PaginaUsuario
+@inject RegistroHorasService Registro
+@inject LiquidacionService Liquidacion
+@inject TimeProvider Reloj
+
+<PageTitle>Historial · Horas Extras</PageTitle>
+
+<h1 class="h4 mb-3">Historial</h1>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h6">Registro manual</h2>
+        <p class="small text-body-secondary">Para olvidos o correcciones. Hora de Colombia.</p>
+        <div class="row g-2">
+            <div class="col-12 col-md-4"><label class="form-label small">Inicio</label><input type="datetime-local" class="form-control" @bind="manualInicio" /></div>
+            <div class="col-12 col-md-4"><label class="form-label small">Fin</label><input type="datetime-local" class="form-control" @bind="manualFin" /></div>
+            <div class="col-12 col-md-4"><label class="form-label small">Nota</label><input class="form-control" @bind="manualNota" placeholder="Opcional" /></div>
+        </div>
+        <button class="btn btn-primary mt-3" @onclick="AgregarManual">Agregar</button>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h6">Sesiones de la quincena</h2>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Nota</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var s in sesiones)
+                    {
+                        <tr>
+                            <td>@Formato.FechaHoraLocal(s.InicioUtc)</td>
+                            <td>@(s.FinUtc is null ? Formato.Nombre(s.Estado) : Formato.HoraLocal(s.FinUtc))</td>
+                            <td class="text-end">@Formato.Horas(s.SegundosAcumulados / 3600m)</td>
+                            <td class="small text-body-secondary">@s.Nota</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button></td>
+                        </tr>
+                    }
+                    @if (sesiones.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-body-secondary">Sin sesiones en esta quincena.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h6">Liquidaciones guardadas</h2>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Periodo</th><th>Guardada</th><th class="text-end">Horas</th><th class="text-end">Valor</th></tr></thead>
+                <tbody>
+                    @foreach (var l in liquidaciones)
+                    {
+                        <tr>
+                            <td>@Formato.Fecha(l.Desde) – @Formato.Fecha(l.Hasta)</td>
+                            <td>@Formato.FechaHoraLocal(l.CreadaEnUtc)</td>
+                            <td class="text-end">@Formato.Horas(l.HorasTotales)</td>
+                            <td class="text-end">@Formato.Pesos(l.ValorTotal)</td>
+                        </tr>
+                    }
+                    @if (liquidaciones.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">Aún no has guardado liquidaciones.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<SesionDto> sesiones = [];
+    private IReadOnlyList<LiquidacionGuardadaDto> liquidaciones = [];
+    private DateTime? manualInicio, manualFin;
+    private string? manualNota;
+
+    protected override async Task CargarAsync()
+    {
+        sesiones = await Registro.ListarAsync(UsuarioId);
+        liquidaciones = await Liquidacion.HistorialAsync(UsuarioId);
+    }
+
+    private Task AgregarManual() => Intentar(async () =>
+    {
+        if (manualInicio is null || manualFin is null) throw new ReglaNegocioException("Completa el inicio y el fin.");
+        await Registro.RegistrarManualAsync(UsuarioId,
+            new RegistroManualInput(ZonaHoraria.AUtc(manualInicio.Value), ZonaHoraria.AUtc(manualFin.Value), manualNota));
+        manualInicio = manualFin = null;
+        manualNota = null;
+        await CargarAsync();
+    });
+
+    private Task Eliminar(int id) => Intentar(async () =>
+    {
+        await Registro.EliminarAsync(UsuarioId, id);
+        await CargarAsync();
+    });
+}

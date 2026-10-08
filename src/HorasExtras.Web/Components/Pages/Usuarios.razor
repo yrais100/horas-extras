@@ -1,0 +1,40 @@
+@page "/admin/usuarios"
+@attribute [Authorize(Roles = AppDbContext.RolAdmin)]
+@using HorasExtras.Infrastructure
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject UserManager<Usuario> Gestor
+@inject LiquidacionService Liquidacion
+
+<PageTitle>Usuarios · Horas Extras</PageTitle>
+
+<h1 class="h4 mb-3">Usuarios · quincena actual</h1>
+
+<div class="card">
+    <div class="card-body table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Usuario</th><th class="text-end">Días</th><th class="text-end">Horas</th><th class="text-end">Valor</th></tr></thead>
+            <tbody>
+                @foreach (var (u, r) in filas)
+                {
+                    <tr>
+                        <td>@(u.Nombre ?? u.Email)</td>
+                        <td class="text-end">@r.DiasTrabajados</td>
+                        <td class="text-end">@Formato.Horas(r.HorasTotales)</td>
+                        <td class="text-end">@Formato.Pesos(r.ValorTotal)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<(Usuario, ResultadoLiquidacion)> filas = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        foreach (var u in await Gestor.Users.OrderBy(x => x.Email).ToListAsync())
+            filas.Add((u, await Liquidacion.CalcularAsync(u.Id)));
+    }
+}

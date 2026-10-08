@@ -1,0 +1,115 @@
+@page "/"
+@attribute [Authorize]
+@inherits PaginaUsuario
+@implements IDisposable
+@inject RegistroHorasService Registro
+@inject LiquidacionService Liquidacion
+@inject TimeProvider Reloj
+
+<PageTitle>Hoy · Horas Extras</PageTitle>
+
+<div class="card mb-3">
+    <div class="card-body text-center">
+        <span class="badge rounded-pill @ClaseEstado">@(sesion is null ? "Sin iniciar" : Formato.Nombre(sesion.Estado))</span>
+        <div class="reloj my-2">@Cronometro</div>
+        <div class="text-body-secondary small">
+            @if (sesion is null)
+            {
+                <text>Pulsa Iniciar cuando empieces tus horas extra.</text>
+            }
+            else
+            {
+                <text>Iniciada a las @Formato.HoraLocal(sesion.InicioUtc) · @sesion.Tramos.Count tramo(s)</text>
+            }
+        </div>
+        @if (Error is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0 py-2">@Error</div>
+        }
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-3">
+            @if (sesion is null)
+            {
+                <button class="btn btn-primary btn-lg px-5" disabled="@ocupado" @onclick="() => Accion(() => Registro.IniciarAsync(UsuarioId))">▶ Iniciar</button>
+            }
+            else
+            {
+                @if (sesion.Estado == EstadoSesion.EnCurso)
+                {
+                    <button class="btn btn-warning btn-lg px-4" disabled="@ocupado" @onclick="() => Accion(() => Registro.PausarAsync(UsuarioId))">⏸ Pausar</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary btn-lg px-4" disabled="@ocupado" @onclick="() => Accion(() => Registro.ContinuarAsync(UsuarioId))">▶ Continuar</button>
+                }
+                <button class="btn btn-outline-danger btn-lg px-4" disabled="@ocupado" @onclick="() => Accion(() => Registro.FinalizarAsync(UsuarioId))">■ Finalizar</button>
+            }
+        </div>
+    </div>
+</div>
+
+@if (resumen is not null)
+{
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h6 mb-3">Quincena actual · @Formato.Fecha(resumen.Desde) – @Formato.Fecha(resumen.Hasta)</h2>
+            <ResumenLiquidacion Resultado="resumen" />
+        </div>
+    </div>
+}
+
+@code {
+    private SesionDto? sesion;
+    private ResultadoLiquidacion? resumen;
+    private bool ocupado;
+    private long segundosBase;
+    private DateTimeOffset marca;
+    private PeriodicTimer? timer;
+
+    protected override async Task CargarAsync()
+    {
+        sesion = await Registro.EstadoAsync(UsuarioId);
+        resumen = await Liquidacion.CalcularAsync(UsuarioId);
+        segundosBase = sesion?.SegundosAcumulados ?? 0;
+        marca = Reloj.GetUtcNow();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) _ = Tic();
+    }
+
+    private async Task Tic()
+    {
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        while (await timer.WaitForNextTickAsync())
+        {
+            if (sesion?.Estado == EstadoSesion.EnCurso) await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private string Cronometro
+    {
+        get
+        {
+            var seg = segundosBase + (sesion?.Estado == EstadoSesion.EnCurso ? (long)(Reloj.GetUtcNow() - marca).TotalSeconds : 0);
+            return $"{seg / 3600:00}:{seg % 3600 / 60:00}:{seg % 60:00}";
+        }
+    }
+
+    private string ClaseEstado => sesion?.Estado switch
+    {
+        EstadoSesion.EnCurso => "text-bg-success",
+        EstadoSesion.Pausada => "text-bg-warning",
+        _ => "text-bg-secondary",
+    };
+
+    private async Task Accion(Func<Task<SesionDto>> accion)
+    {
+        ocupado = true;
+        await Intentar(async () => await accion());
+        await CargarAsync();
+        ocupado = false;
+    }
+
+    public void Dispose() => timer?.Dispose();
+}

@@ -1,0 +1,25 @@
+@using HorasExtras.Domain.Calculo
+
+<div class="row g-2">
+    @foreach (var t in Resultado.Totales)
+    {
+        <div class="col-6 col-md-3">
+            <div class="kpi @(t.Categoria is Categoria.Nocturna or Categoria.DominicalNocturna ? "noc" : "")">
+                <small class="text-body-secondary">@Formato.Nombre(t.Categoria)</small>
+                <b>@Formato.Horas(t.Horas)</b>
+                <small>@Formato.Pesos(t.Valor)</small>
+            </div>
+        </div>
+    }
+    <div class="col-6 col-md-3"><div class="kpi"><small class="text-body-secondary">Días trabajados</small><b>@Resultado.DiasTrabajados</b></div></div>
+    <div class="col-6 col-md-3"><div class="kpi"><small class="text-body-secondary">Total horas</small><b>@Formato.Horas(Resultado.HorasTotales)</b></div></div>
+    <div class="col-12 col-md-6"><div class="kpi total"><small class="text-body-secondary">Valor liquidado hasta ahora</small><b>@Formato.Pesos(Resultado.ValorTotal)</b></div></div>
+</div>
+@foreach (var a in Resultado.Avisos)
+{
+    <div class="alert alert-warning mt-2 mb-0 py-2">@a</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public ResultadoLiquidacion Resultado { get; set; } = default!;
+}

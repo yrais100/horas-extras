@@ -10,6 +10,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public const string RolAdmin = "Admin";
 
+    /// <summary>
+    /// Esquema propio en PostgreSQL. En Supabase el esquema "public" queda expuesto por su API REST,
+    /// así que las tablas de la aplicación viven aparte.
+    /// </summary>
+    public const string Esquema = "horasextras";
+
     public DbSet<Sesion> Sesiones => Set<Sesion>();
     public DbSet<SalarioUsuario> Salarios => Set<SalarioUsuario>();
     public DbSet<ConfiguracionRecargos> Recargos => Set<ConfiguracionRecargos>();
@@ -28,6 +34,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        if (!Database.IsSqlite()) b.HasDefaultSchema(Esquema);
 
         b.Entity<Sesion>(e =>
         {

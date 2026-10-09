@@ -91,15 +91,23 @@ En desarrollo la especificación OpenAPI está en `/openapi/v1.json`. Los errore
 `ProblemDetails`: 400 datos inválidos, 404 no encontrado, 409 regla de negocio (por ejemplo, pausar sin
 sesión abierta).
 
-## Despliegue en Azure
+## Despliegue en Azure con Supabase
 
-1. Crea un **Azure Database for PostgreSQL – Flexible Server** y una base `horasextras`.
-2. Crea un **App Service** Linux con .NET 10 y, en *Configuración → Variables de entorno*, agrega
-   `ConnectionStrings__Default` con la cadena de PostgreSQL.
-3. En GitHub, agrega la variable `AZURE_WEBAPP_NAME` y el secreto `AZURE_WEBAPP_PUBLISH_PROFILE`
-   (el perfil de publicación se descarga desde el App Service).
-4. Cada push a `main` corre las pruebas y despliega (`.github/workflows/desplegar-azure.yml`). Las
-   migraciones se aplican solas al arrancar.
+1. **Base de datos (Supabase):** en *Connect* copia la cadena del **Session pooler** (puerto 5432; la
+   conexión directa solo funciona por IPv6 y App Service no lo soporta) y pásala a formato Npgsql:
+   `Host=aws-0-<region>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<ref>;Password=<clave>;SSL Mode=Require;Maximum Pool Size=10`
+2. **App Service:** Linux, pila **.NET 10**. En *Configuración → Cadenas de conexión* agrega una de
+   nombre `Default` y tipo `PostgreSQL` con la cadena anterior (equivale a la variable
+   `ConnectionStrings__Default`).
+3. **Despliegue desde GitHub:** en el App Service activa *Configuración → Credenciales de publicación
+   básica de SCM*, descarga el perfil de publicación y, en el repositorio de GitHub, crea la variable
+   `AZURE_WEBAPP_NAME` y el secreto `AZURE_WEBAPP_PUBLISH_PROFILE`. Cada push a `main` corre las pruebas
+   y despliega (`.github/workflows/desplegar-azure.yml`).
+4. **Migraciones:** se aplican solas al arrancar la aplicación. Las tablas quedan en el esquema
+   `horasextras`, no en `public`, porque Supabase expone `public` por su API REST.
+
+Notas del plan gratuito: F1 apaga la aplicación tras ~20 minutos sin uso (la primera visita después tarda
+unos segundos) y Supabase gratuito pausa el proyecto tras una semana sin actividad.
 
 Alternativa: la imagen del `Dockerfile` corre en cualquier servicio de contenedores (Azure Container Apps,
 Railway, un VPS) con la misma variable `ConnectionStrings__Default`.

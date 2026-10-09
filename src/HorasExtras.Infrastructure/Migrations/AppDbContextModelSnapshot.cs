@@ -17,6 +17,7 @@ namespace HorasExtras.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("horasextras")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -60,7 +61,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasKey("UsuarioId");
 
-                    b.ToTable("ConfiguracionRecargos", (string)null);
+                    b.ToTable("ConfiguracionRecargos", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Domain.Entidades.Liquidacion", b =>
@@ -100,7 +101,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("UsuarioId", "Desde");
 
-                    b.ToTable("Liquidaciones", (string)null);
+                    b.ToTable("Liquidaciones", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Domain.Entidades.SalarioUsuario", b =>
@@ -131,7 +132,7 @@ namespace HorasExtras.Infrastructure.Migrations
                     b.HasIndex("UsuarioId", "VigenteDesde")
                         .IsUnique();
 
-                    b.ToTable("Salarios", (string)null);
+                    b.ToTable("Salarios", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Domain.Entidades.Sesion", b =>
@@ -166,7 +167,7 @@ namespace HorasExtras.Infrastructure.Migrations
                         .HasDatabaseName("IX_Sesiones_UnaAbiertaPorUsuario")
                         .HasFilter("\"Estado\" <> 'Finalizada'");
 
-                    b.ToTable("Sesiones", (string)null);
+                    b.ToTable("Sesiones", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Domain.Entidades.Tramo", b =>
@@ -192,7 +193,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("SesionId");
 
-                    b.ToTable("Tramos", (string)null);
+                    b.ToTable("Tramos", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Infrastructure.Usuario", b =>
@@ -260,7 +261,7 @@ namespace HorasExtras.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("AspNetUsers", (string)null);
+                    b.ToTable("AspNetUsers", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -286,7 +287,7 @@ namespace HorasExtras.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("AspNetRoles", (string)null);
+                    b.ToTable("AspNetRoles", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -311,7 +312,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetRoleClaims", (string)null);
+                    b.ToTable("AspNetRoleClaims", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -336,7 +337,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserClaims", (string)null);
+                    b.ToTable("AspNetUserClaims", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
@@ -360,7 +361,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserLogins", (string)null);
+                    b.ToTable("AspNetUserLogins", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserPasskey<string>", b =>
@@ -377,7 +378,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AspNetUserPasskeys", (string)null);
+                    b.ToTable("AspNetUserPasskeys", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
@@ -392,7 +393,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("AspNetUserRoles", (string)null);
+                    b.ToTable("AspNetUserRoles", "horasextras");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
@@ -413,7 +414,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
-                    b.ToTable("AspNetUserTokens", (string)null);
+                    b.ToTable("AspNetUserTokens", "horasextras");
                 });
 
             modelBuilder.Entity("HorasExtras.Domain.Entidades.ConfiguracionRecargos", b =>
@@ -525,7 +526,7 @@ namespace HorasExtras.Infrastructure.Migrations
 
                             b1.HasKey("IdentityUserPasskeyCredentialId");
 
-                            b1.ToTable("AspNetUserPasskeys");
+                            b1.ToTable("AspNetUserPasskeys", "horasextras");
 
                             b1
                                 .ToJson("Data")

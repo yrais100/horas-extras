@@ -20,7 +20,9 @@ public static class DependencyInjection
         services.AddDbContextFactory<AppDbContext>(o =>
         {
             if (proveedor.Equals("Sqlite", StringComparison.OrdinalIgnoreCase)) o.UseSqlite(conexion);
-            else o.UseNpgsql(conexion);
+            else o.UseNpgsql(conexion, npgsql => npgsql
+                .MigrationsHistoryTable("__EFMigrationsHistory", AppDbContext.Esquema)
+                .EnableRetryOnFailure(3)); // reintenta cortes breves de red con la base de datos administrada
         });
         services.AddSingleton<IAppDbContextFactory, AppDbContextFactory>();
         return services;

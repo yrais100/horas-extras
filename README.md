@@ -106,6 +106,10 @@ sesión abierta).
 4. **Migraciones:** se aplican solas al arrancar la aplicación. Las tablas quedan en el esquema
    `horasextras`, no en `public`, porque Supabase expone `public` por su API REST.
 
+**Si la app no abre:** visita `https://<tu-app>.azurewebsites.net/salud`. Responde `{"estado":"ok"}` o el
+error exacto de la base de datos (cadena faltante, clave incorrecta, usuario del pooler mal escrito). El
+mismo mensaje sale en *Supervisión → Secuencia de registro* del App Service.
+
 Notas del plan gratuito: F1 apaga la aplicación tras ~20 minutos sin uso (la primera visita después tarda
 unos segundos) y Supabase gratuito pausa el proyecto tras una semana sin actividad.
 

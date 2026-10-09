@@ -14,8 +14,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInfraestructura(this IServiceCollection services, IConfiguration config)
     {
         var proveedor = config["Database:Provider"] ?? "Postgres";
-        var conexion = config.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Falta la cadena de conexión 'ConnectionStrings:Default'.");
+        // Si falta, la aplicación arranca igual y /salud lo informa (ver InicializarBaseDeDatosAsync).
+        var conexion = config.GetConnectionString("Default") ?? "";
 
         services.AddDbContextFactory<AppDbContext>(o =>
         {
@@ -28,12 +28,25 @@ public static class DependencyInjection
         return services;
     }
 
-    /// <summary>Aplica migraciones (Postgres) o crea el esquema (Sqlite).</summary>
-    public static async Task InicializarBaseDeDatosAsync(this IServiceProvider sp)
+    /// <summary>
+    /// Aplica migraciones (Postgres) o crea el esquema (Sqlite). Devuelve el error en lugar de lanzarlo,
+    /// para que la aplicación arranque y el problema se vea en /salud y en el log, no como un 503 mudo.
+    /// </summary>
+    public static async Task<string?> InicializarBaseDeDatosAsync(this IServiceProvider sp, IConfiguration config)
     {
-        await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
-        if (db.Database.IsSqlite()) await db.Database.EnsureCreatedAsync();
-        else await db.Database.MigrateAsync();
+        if (string.IsNullOrWhiteSpace(config.GetConnectionString("Default")))
+            return "Falta la cadena de conexión 'Default' (ConnectionStrings:Default).";
+        try
+        {
+            await using var db = await sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+            if (db.Database.IsSqlite()) await db.Database.EnsureCreatedAsync();
+            else await db.Database.MigrateAsync();
+            return null;
+        }
+        catch (Exception e)
+        {
+            return $"{e.GetType().Name}: {(e.InnerException ?? e).Message}";
+        }
     }
 
     private class AppDbContextFactory(IDbContextFactory<AppDbContext> fabrica) : IAppDbContextFactory

@@ -7,6 +7,7 @@ using HorasExtras.Web.Components.Account;
 using HorasExtras.Web.Servicios;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 // Moneda y fechas en formato colombiano ($ 1.234.567, "jue 8 oct").
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("es-CO");
@@ -65,11 +66,17 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 
 var app = builder.Build();
 
-await app.Services.InicializarBaseDeDatosAsync();
-using (var scope = app.Services.CreateScope())
+// Si la base de datos no responde, la app arranca igual: el error queda en el log y en /salud.
+var errorBaseDeDatos = await app.Services.InicializarBaseDeDatosAsync(app.Configuration);
+if (errorBaseDeDatos is null)
 {
+    using var scope = app.Services.CreateScope();
     var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     if (!await roles.RoleExistsAsync(AppDbContext.RolAdmin)) await roles.CreateAsync(new IdentityRole(AppDbContext.RolAdmin));
+}
+else
+{
+    app.Logger.LogCritical("No se pudo preparar la base de datos: {Error}", errorBaseDeDatos);
 }
 
 if (app.Environment.IsDevelopment())
@@ -94,6 +101,17 @@ app.MapRazorComponents<App>()
 
 app.MapAdditionalIdentityEndpoints();
 app.MapHorasExtrasApi();
+
+// Diagnóstico de despliegue: indica si la base de datos responde (no expone la cadena de conexión).
+app.MapGet("/salud", async (IDbContextFactory<AppDbContext> fabrica) =>
+{
+    if (errorBaseDeDatos is not null)
+        return Results.Json(new { estado = "error", baseDeDatos = errorBaseDeDatos }, statusCode: 503);
+    await using var db = await fabrica.CreateDbContextAsync();
+    return await db.Database.CanConnectAsync()
+        ? Results.Json(new { estado = "ok" })
+        : Results.Json(new { estado = "error", baseDeDatos = "La base de datos no responde." }, statusCode: 503);
+});
 
 app.Run();
 

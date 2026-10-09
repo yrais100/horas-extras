@@ -147,4 +147,15 @@ public class ApiTests : IClassFixture<Fabrica>
         Assert.Contains("/Account/Login", r.Headers.Location!.ToString());
         Assert.Equal(HttpStatusCode.OK, (await c.GetAsync("/Account/Login")).StatusCode);
     }
+
+    [Fact]
+    public async Task ApiResponde401SinRedirigir()
+    {
+        // La app móvil necesita un 401 para saber que debe volver a pedir el ingreso.
+        var c = _app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var r = await c.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = "vencido" });
+        Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode);
+        Assert.Null(r.Headers.Location);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/estado")).StatusCode);
+    }
 }

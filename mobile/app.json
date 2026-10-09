@@ -32,7 +32,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiUrl": "https://horasextras.azurewebsites.net"
+      "apiUrl": "https://horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net"
     }
   }
 }

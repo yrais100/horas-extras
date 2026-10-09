@@ -221,6 +221,11 @@ export class ClienteApi {
         signal: control.signal,
       });
     } catch {
+      if (control.signal.aborted)
+        throw new ApiError(
+          0,
+          `${this.baseUrl} tardó demasiado en responder. Si el servidor estaba dormido, espera un momento e intenta de nuevo.`,
+        );
       throw new ApiError(
         0,
         `No se pudo conectar con ${this.baseUrl}. Revisa tu conexión a internet o la dirección del servidor.`,

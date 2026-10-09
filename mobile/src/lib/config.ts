@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 
 /** Sitio de producción. Se puede cambiar en app.json (extra.apiUrl), con EXPO_PUBLIC_API_URL o desde la app. */
-export const SERVIDOR_PRODUCCION = 'https://horasextras.azurewebsites.net';
+export const SERVIDOR_PRODUCCION = 'https://horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net';
 
 export function servidorPorDefecto(): string {
   const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;

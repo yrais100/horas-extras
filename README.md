@@ -5,7 +5,8 @@ finaliza sus horas; la aplicación las clasifica en diurnas, nocturnas, dominica
 ley vigente en cada fecha, y las liquida con **el salario de cada usuario**.
 
 - **Web:** Blazor (render interactivo en el servidor), con inicio de sesión y multiusuario.
-- **API REST:** en la misma aplicación, para la futura app en React Native.
+- **API REST:** en la misma aplicación, para la app móvil.
+- **App móvil:** React Native con Expo para iOS y Android, en [`mobile/`](mobile/README.md).
 - **Base de datos:** PostgreSQL en producción; SQLite en desarrollo y pruebas, sin instalar nada.
 
 ## Estructura
@@ -17,9 +18,10 @@ HorasExtras.slnx
 │  ├─ HorasExtras.Application     Casos de uso: registro de horas, liquidación, perfil (salario y recargos)
 │  ├─ HorasExtras.Infrastructure  EF Core (PostgreSQL / SQLite), Identity, migraciones
 │  └─ HorasExtras.Web             Blazor + API REST (/api) + inicio de sesión
-└─ tests/
-   ├─ HorasExtras.Domain.Tests    Cálculo: cruces de medianoche, festivos, cambios de ley y de salario
-   └─ HorasExtras.Web.Tests       API de punta a punta con dos usuarios
+├─ tests/
+│  ├─ HorasExtras.Domain.Tests    Cálculo: cruces de medianoche, festivos, cambios de ley y de salario
+│  └─ HorasExtras.Web.Tests       API de punta a punta con dos usuarios
+└─ mobile/                        App React Native (Expo) para iOS y Android
 ```
 
 ## Correrlo en tu equipo
@@ -71,7 +73,8 @@ el nuevo.
 
 ## API REST (para la app móvil)
 
-La app inicia sesión con correo y clave y recibe un token de acceso (1 hora) y uno de renovación.
+La app de [`mobile/`](mobile/README.md) inicia sesión con correo y clave y recibe un token de acceso
+(1 hora) y uno de renovación.
 Todas las rutas actúan sobre el usuario del token; nadie ve las horas de otro.
 
 | Ruta | Qué hace |
@@ -88,8 +91,8 @@ Todas las rutas actúan sobre el usuario del token; nadie ve las horas de otro.
 | `GET /api/admin/usuarios` | Resumen de la quincena de todos (solo administrador) |
 
 En desarrollo la especificación OpenAPI está en `/openapi/v1.json`. Los errores salen como
-`ProblemDetails`: 400 datos inválidos, 404 no encontrado, 409 regla de negocio (por ejemplo, pausar sin
-sesión abierta).
+`ProblemDetails`: 400 datos inválidos, 401 sin sesión o token vencido, 404 no encontrado, 409 regla de
+negocio (por ejemplo, pausar sin sesión abierta). Las rutas de `/api` nunca redirigen a la página de ingreso.
 
 ## Despliegue en Azure con Supabase
 
@@ -129,7 +132,6 @@ ASPNETCORE_ENVIRONMENT=Production dotnet ef migrations add <Nombre> \
 
 ## Pendiente
 
-- App móvil en React Native (Expo) contra esta API.
 - Envío de correos (confirmación de cuenta y recuperación de clave); hoy el registro no exige confirmar el correo.
 - Traducir al español las pantallas secundarias de la cuenta (2FA, passkeys, cambio de correo), que siguen en inglés.
 - Exportar la liquidación a PDF o Excel.

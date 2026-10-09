@@ -30,6 +30,21 @@ builder.Services.AddAuthentication(options =>
     .AddBearerToken(IdentityConstants.BearerScheme)
     .AddIdentityCookies();
 
+// En /api no se redirige a la página de ingreso: la app móvil necesita un 401 (o 403) para reaccionar,
+// por ejemplo cuando su token de renovación ya venció.
+builder.Services.ConfigureApplicationCookie(o =>
+{
+    o.Events.OnRedirectToLogin = ctx => RedirigirSalvoApi(ctx, StatusCodes.Status401Unauthorized);
+    o.Events.OnRedirectToAccessDenied = ctx => RedirigirSalvoApi(ctx, StatusCodes.Status403Forbidden);
+
+    static Task RedirigirSalvoApi(Microsoft.AspNetCore.Authentication.RedirectContext<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions> ctx, int estado)
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api")) ctx.Response.StatusCode = estado;
+        else ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    }
+});
+
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(PoliticasApi.Usuario, p => p
         .AddAuthenticationSchemes(IdentityConstants.BearerScheme, IdentityConstants.ApplicationScheme)
@@ -89,7 +104,10 @@ else
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// Las páginas de error son para la web; la API responde sus códigos tal cual (un POST re-ejecutado como
+// página daría 400 en vez del 401 que la app móvil espera).
+app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+    web => web.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 app.UseCors();
 

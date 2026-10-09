@@ -28,8 +28,10 @@ Todas las fechas y horas se muestran en hora de Colombia, aunque el teléfono es
    El computador y el celular deben estar en la misma red Wi-Fi. Si no lo están (o la red lo bloquea),
    usa `npx expo start --tunnel`.
 
-La app se conecta por defecto a producción, `https://horasextras.azurewebsites.net`. Puedes usar la misma
-cuenta que en la web.
+La app se conecta por defecto a producción,
+`https://horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net`, el dominio predeterminado del App Service
+(Azure ya no da a los sitios nuevos la forma corta `<nombre>.azurewebsites.net`). Puedes usar la misma cuenta
+que en la web.
 
 > El plan gratuito de Azure apaga el sitio tras unos minutos sin uso: el primer ingreso del día puede
 > tardar algunos segundos.

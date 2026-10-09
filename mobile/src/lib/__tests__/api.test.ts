@@ -40,9 +40,9 @@ const auth = (l: Llamada) => (l.init.headers as Record<string, string>).Authoriz
 
 describe('normalizarBaseUrl', () => {
   it('quita la barra final y exige http(s)', () => {
-    expect(normalizarBaseUrl(' https://horasextras.azurewebsites.net/ ')).toBe('https://horasextras.azurewebsites.net');
+    expect(normalizarBaseUrl(' https://horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net/ ')).toBe('https://horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net');
     expect(normalizarBaseUrl('http://192.168.1.20:5228')).toBe('http://192.168.1.20:5228');
-    expect(normalizarBaseUrl('horasextras.azurewebsites.net')).toBeNull();
+    expect(normalizarBaseUrl('horasextras-fqhdadd8bfbwafgb.westus3-01.azurewebsites.net')).toBeNull();
     expect(normalizarBaseUrl('ftp://x')).toBeNull();
   });
 });
@@ -137,6 +137,15 @@ describe('ClienteApi', () => {
     await expect(api.estado()).rejects.toEqual(new ApiError(401, 'Tu sesión expiró. Vuelve a ingresar.'));
     expect(almacen.valor).toBeNull();
     expect(alExpirar).toHaveBeenCalled();
+  });
+
+  it('si el servidor no responde a tiempo, lo dice', async () => {
+    const f = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_ok, fallar) => init.signal?.addEventListener('abort', () => fallar(new Error('Aborted')))),
+    ) as unknown as typeof fetch;
+    const api = new ClienteApi({ baseUrl: 'http://api', almacen: almacenEnMemoria(), fetch: f, timeoutMs: 10 });
+    await expect(api.ingresar('a@b.co', 'x')).rejects.toMatchObject({ status: 0, message: expect.stringContaining('tardó demasiado') });
   });
 
   it('sin conexión da un mensaje con la dirección del servidor', async () => {

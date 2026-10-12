@@ -82,7 +82,9 @@ Todas las rutas actúan sobre el usuario del token; nadie ve las horas de otro.
 | `POST /api/auth/register` · `POST /api/auth/login` · `POST /api/auth/refresh` | Registro, inicio de sesión y renovación del token |
 | `GET /api/estado` | Sesión abierta y segundos acumulados |
 | `POST /api/sesiones/iniciar` · `/pausar` · `/continuar` · `/finalizar` | Cronómetro |
-| `POST /api/sesiones` · `GET /api/sesiones` · `DELETE /api/sesiones/{id}` | Registro manual, listado y borrado |
+| `POST /api/sesiones` · `GET /api/sesiones` · `DELETE /api/sesiones/{id}` | Registro manual por inicio y fin, listado y borrado |
+| `POST /api/sesiones/por-horas` · `PUT /api/sesiones/{id}` | Registro y ajuste manual por fecha y cantidad de horas (hora de inicio opcional, 6:00 p. m. por defecto) |
+| `PUT /api/sesiones/{id}/nota` | Observaciones de un registro (también de la sesión en curso) |
 | `GET /api/liquidacion?desde=&hasta=` | Liquidación en vivo (por defecto, la quincena actual) |
 | `POST /api/liquidaciones` · `GET /api/liquidaciones` · `GET /api/liquidaciones/{id}` | Guardar y consultar liquidaciones |
 | `GET/POST /api/perfil/salarios` · `DELETE /api/perfil/salarios/{id}` | Salario con historial |

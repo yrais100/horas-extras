@@ -30,6 +30,20 @@ export interface Sesion {
   tramos: Tramo[];
 }
 
+export interface RegistroPorHoras {
+  fecha: Fecha;
+  horas: number;
+  /** "18:00:00"; si se omite, el servidor asume las 6:00 p. m. */
+  horaInicio?: string | null;
+  /** Observaciones: qué se hizo durante ese tiempo. */
+  nota?: string | null;
+}
+
+export interface Festivo {
+  fecha: Fecha;
+  nombre: string;
+}
+
 export interface TotalCategoria {
   categoria: Categoria;
   horas: number;

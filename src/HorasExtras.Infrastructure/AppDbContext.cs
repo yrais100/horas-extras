@@ -41,7 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.ToTable("Sesiones");
             e.Property(x => x.UsuarioId).HasMaxLength(450);
             e.Property(x => x.Estado).HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.Nota).HasMaxLength(500);
+            e.Property(x => x.Nota).HasMaxLength(Sesion.LargoMaximoNota);
             e.HasOne<Usuario>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Tramos).WithOne().HasForeignKey(t => t.SesionId).OnDelete(DeleteBehavior.Cascade);
             e.Ignore(x => x.InicioUtc);

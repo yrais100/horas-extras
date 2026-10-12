@@ -46,6 +46,38 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         return SesionDto.De(s, Ahora);
     }
 
+    /// <summary>Registro manual por cantidad de horas en una fecha; el recargo sale del día y la franja.</summary>
+    public async Task<SesionDto> RegistrarPorHorasAsync(string usuarioId, RegistroPorHorasInput input, CancellationToken ct = default)
+    {
+        var (inicio, fin) = Sesion.IntervaloPorHoras(input.Fecha, input.HoraInicio, input.Horas);
+        await using var db = fabrica.Crear();
+        var s = Sesion.Manual(usuarioId, inicio, fin, Ahora, input.Nota);
+        db.Sesiones.Add(s);
+        await db.SaveChangesAsync(ct);
+        return SesionDto.De(s, Ahora);
+    }
+
+    /// <summary>Ajuste manual de una sesión finalizada: nueva fecha, hora de inicio, horas y observaciones.</summary>
+    public async Task<SesionDto> AjustarAsync(string usuarioId, int sesionId, RegistroPorHorasInput input, CancellationToken ct = default)
+    {
+        var (inicio, fin) = Sesion.IntervaloPorHoras(input.Fecha, input.HoraInicio, input.Horas);
+        await using var db = fabrica.Crear();
+        var s = await Buscar(db, usuarioId, sesionId, ct);
+        s.Ajustar(inicio, fin, Ahora, input.Nota);
+        await db.SaveChangesAsync(ct);
+        return SesionDto.De(s, Ahora);
+    }
+
+    /// <summary>Cambia las observaciones de cualquier sesión, incluso la que está en curso.</summary>
+    public async Task<SesionDto> CambiarNotaAsync(string usuarioId, int sesionId, string? nota, CancellationToken ct = default)
+    {
+        await using var db = fabrica.Crear();
+        var s = await Buscar(db, usuarioId, sesionId, ct);
+        s.CambiarNota(nota);
+        await db.SaveChangesAsync(ct);
+        return SesionDto.De(s, Ahora);
+    }
+
     public async Task<IReadOnlyList<SesionDto>> ListarAsync(string usuarioId, Periodo? periodo = null, CancellationToken ct = default)
     {
         await using var db = fabrica.Crear();
@@ -73,6 +105,10 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
     }
+
+    private static async Task<Sesion> Buscar(IAppDbContext db, string usuarioId, int sesionId, CancellationToken ct) =>
+        await db.Sesiones.Include(s => s.Tramos).FirstOrDefaultAsync(x => x.Id == sesionId && x.UsuarioId == usuarioId, ct)
+            ?? throw new NoEncontradoException("Sesión no encontrada.");
 
     private static Task<Sesion?> Abierta(IAppDbContext db, string usuarioId, CancellationToken ct) =>
         db.Sesiones.Include(s => s.Tramos)

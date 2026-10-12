@@ -17,11 +17,28 @@
 <div class="card mb-3">
     <div class="card-body">
         <h2 class="h6">Registro manual</h2>
-        <p class="small text-body-secondary">Para olvidos o correcciones. Hora de Colombia.</p>
+        <p class="small text-body-secondary">Para olvidos o correcciones. Hora de Colombia. El recargo se calcula según el día (ordinario, dominical o festivo) y la franja diurna o nocturna.</p>
+        <ul class="nav nav-pills nav-sm mb-3">
+            <li class="nav-item"><button class="nav-link py-1 @(porIntervalo ? "" : "active")" @onclick="() => porIntervalo = false">Por cantidad de horas</button></li>
+            <li class="nav-item"><button class="nav-link py-1 @(porIntervalo ? "active" : "")" @onclick="() => porIntervalo = true">Por hora de inicio y fin</button></li>
+        </ul>
         <div class="row g-2">
-            <div class="col-12 col-md-4"><label class="form-label small">Inicio</label><input type="datetime-local" class="form-control" @bind="manualInicio" /></div>
-            <div class="col-12 col-md-4"><label class="form-label small">Fin</label><input type="datetime-local" class="form-control" @bind="manualFin" /></div>
-            <div class="col-12 col-md-4"><label class="form-label small">Nota</label><input class="form-control" @bind="manualNota" placeholder="Opcional" /></div>
+            @if (porIntervalo)
+            {
+                <div class="col-12 col-md-6"><label class="form-label small">Inicio</label><input type="datetime-local" class="form-control" @bind="manualInicio" /></div>
+                <div class="col-12 col-md-6"><label class="form-label small">Fin</label><input type="datetime-local" class="form-control" @bind="manualFin" /></div>
+            }
+            else
+            {
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Fecha</label>
+                    <input type="date" class="form-control" @bind="manual.Fecha" max="@Hoy.ToString("yyyy-MM-dd")" />
+                    <div class="form-text">@TipoDia(manual.Fecha)</div>
+                </div>
+                <div class="col-6 col-md-4"><label class="form-label small">Hora de inicio</label><input type="time" class="form-control" @bind="manual.HoraInicio" /></div>
+                <div class="col-6 col-md-4"><label class="form-label small">Horas</label><input type="number" class="form-control" min="0.25" max="24" step="0.25" @bind="manual.Horas" /></div>
+            }
+            <div class="col-12"><label class="form-label small">Observaciones</label><textarea class="form-control" rows="2" maxlength="@Sesion.LargoMaximoNota" @bind="manualNota" placeholder="Qué hiciste durante ese tiempo (opcional)"></textarea></div>
         </div>
         <button class="btn btn-primary mt-3" @onclick="AgregarManual">Agregar</button>
     </div>
@@ -32,7 +49,7 @@
         <h2 class="h6">Sesiones de la quincena</h2>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Nota</th><th></th></tr></thead>
+                <thead><tr><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Observaciones</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var s in sesiones)
                     {
@@ -40,9 +57,44 @@
                             <td>@Formato.FechaHoraLocal(s.InicioUtc)</td>
                             <td>@(s.FinUtc is null ? Formato.Nombre(s.Estado) : Formato.HoraLocal(s.FinUtc))</td>
                             <td class="text-end">@Formato.Horas(s.SegundosAcumulados / 3600m)</td>
-                            <td class="small text-body-secondary">@s.Nota</td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button></td>
+                            <td class="small text-body-secondary observaciones">@s.Nota</td>
+                            <td class="text-end text-nowrap">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => Editar(s)">Editar</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button>
+                            </td>
                         </tr>
+                        @if (edicion?.Id == s.Id)
+                        {
+                            <tr>
+                                <td colspan="5" class="bg-body-tertiary">
+                                    <div class="row g-2 py-2">
+                                        @if (edicion.SoloNota)
+                                        {
+                                            <div class="col-12 small text-body-secondary">La sesión sigue abierta: puedes cambiar las observaciones. Para ajustar el tiempo, finalízala primero.</div>
+                                        }
+                                        else
+                                        {
+                                            @if (edicion.VariosTramos)
+                                            {
+                                                <div class="col-12 small text-body-secondary">Al guardar, las pausas de esta sesión se reemplazan por un solo bloque con las horas indicadas.</div>
+                                            }
+                                            <div class="col-12 col-md-4">
+                                                <label class="form-label small">Fecha</label>
+                                                <input type="date" class="form-control form-control-sm" @bind="edicion.Fecha" max="@Hoy.ToString("yyyy-MM-dd")" />
+                                                <div class="form-text">@TipoDia(edicion.Fecha)</div>
+                                            </div>
+                                            <div class="col-6 col-md-4"><label class="form-label small">Hora de inicio</label><input type="time" class="form-control form-control-sm" @bind="edicion.HoraInicio" /></div>
+                                            <div class="col-6 col-md-4"><label class="form-label small">Horas</label><input type="number" class="form-control form-control-sm" min="0.25" max="24" step="0.25" @bind="edicion.Horas" /></div>
+                                        }
+                                        <div class="col-12"><label class="form-label small">Observaciones</label><textarea class="form-control form-control-sm" rows="2" maxlength="@Sesion.LargoMaximoNota" @bind="edicion.Nota"></textarea></div>
+                                        <div class="col-12 d-flex gap-2">
+                                            <button class="btn btn-sm btn-primary" @onclick="GuardarEdicion">Guardar</button>
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => edicion = null">Cancelar</button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
                     }
                     @if (sesiones.Count == 0)
                     {
@@ -83,8 +135,34 @@
 @code {
     private IReadOnlyList<SesionDto> sesiones = [];
     private IReadOnlyList<LiquidacionGuardadaDto> liquidaciones = [];
+    private bool porIntervalo;
     private DateTime? manualInicio, manualFin;
+    private PorHoras manual = new();
     private string? manualNota;
+    private Edicion? edicion;
+
+    private DateOnly Hoy => ZonaHoraria.Hoy(Reloj);
+
+    private class PorHoras
+    {
+        public DateOnly? Fecha { get; set; }
+        public TimeOnly? HoraInicio { get; set; } = Sesion.HoraInicioPorDefecto;
+        public decimal? Horas { get; set; }
+    }
+
+    private sealed class Edicion : PorHoras
+    {
+        public int Id { get; init; }
+        public bool SoloNota { get; init; }
+        public bool VariosTramos { get; init; }
+        public string? Nota { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        manual.Fecha = Hoy;
+        await base.OnInitializedAsync();
+    }
 
     protected override async Task CargarAsync()
     {
@@ -92,13 +170,60 @@
         liquidaciones = await Liquidacion.HistorialAsync(UsuarioId);
     }
 
+    private static string TipoDia(DateOnly? fecha)
+    {
+        if (fecha is not { } f) return "";
+        var festivo = Festivos.DelAnio(f.Year).FirstOrDefault(x => x.Fecha == f);
+        if (festivo is not null) return $"Festivo ({festivo.Nombre}): recargo dominical/festivo.";
+        return f.DayOfWeek == DayOfWeek.Sunday ? "Domingo: recargo dominical/festivo." : "Día ordinario.";
+    }
+
+    private static RegistroPorHorasInput Entrada(PorHoras p, string? nota)
+    {
+        if (p.Fecha is null || p.Horas is null) throw new ReglaNegocioException("Completa la fecha y las horas.");
+        return new RegistroPorHorasInput(p.Fecha.Value, p.Horas.Value, p.HoraInicio, nota);
+    }
+
     private Task AgregarManual() => Intentar(async () =>
     {
-        if (manualInicio is null || manualFin is null) throw new ReglaNegocioException("Completa el inicio y el fin.");
-        await Registro.RegistrarManualAsync(UsuarioId,
-            new RegistroManualInput(ZonaHoraria.AUtc(manualInicio.Value), ZonaHoraria.AUtc(manualFin.Value), manualNota));
-        manualInicio = manualFin = null;
+        if (porIntervalo)
+        {
+            if (manualInicio is null || manualFin is null) throw new ReglaNegocioException("Completa el inicio y el fin.");
+            await Registro.RegistrarManualAsync(UsuarioId,
+                new RegistroManualInput(ZonaHoraria.AUtc(manualInicio.Value), ZonaHoraria.AUtc(manualFin.Value), manualNota));
+            manualInicio = manualFin = null;
+        }
+        else
+        {
+            await Registro.RegistrarPorHorasAsync(UsuarioId, Entrada(manual, manualNota));
+            manual.Horas = null;
+        }
         manualNota = null;
+        await CargarAsync();
+    });
+
+    private void Editar(SesionDto s)
+    {
+        Error = null;
+        var inicio = s.InicioUtc is { } i ? ZonaHoraria.ALocal(i) : (DateTime?)null;
+        edicion = new Edicion
+        {
+            Id = s.Id,
+            SoloNota = s.Estado != EstadoSesion.Finalizada,
+            VariosTramos = s.Tramos.Count > 1,
+            Nota = s.Nota,
+            Fecha = inicio is null ? null : DateOnly.FromDateTime(inicio.Value),
+            HoraInicio = inicio is null ? null : new TimeOnly(inicio.Value.Hour, inicio.Value.Minute),
+            Horas = Math.Round(s.SegundosAcumulados / 3600m, 2),
+        };
+    }
+
+    private Task GuardarEdicion() => Intentar(async () =>
+    {
+        if (edicion is null) return;
+        if (edicion.SoloNota) await Registro.CambiarNotaAsync(UsuarioId, edicion.Id, edicion.Nota);
+        else await Registro.AjustarAsync(UsuarioId, edicion.Id, Entrada(edicion, edicion.Nota));
+        edicion = null;
         await CargarAsync();
     });
 

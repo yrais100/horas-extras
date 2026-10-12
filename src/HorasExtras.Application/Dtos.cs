@@ -14,6 +14,9 @@ public record SesionDto(int Id, EstadoSesion Estado, string? Nota, DateTime? Ini
 
 public record RegistroManualInput(DateTime InicioUtc, DateTime FinUtc, string? Nota);
 
+/// <summary>Horas trabajadas en una fecha. Sin hora de inicio se asume <see cref="Sesion.HoraInicioPorDefecto"/>.</summary>
+public record RegistroPorHorasInput(DateOnly Fecha, decimal Horas, TimeOnly? HoraInicio, string? Nota);
+
 public record SalarioInput(DateOnly VigenteDesde, decimal SalarioMensual, decimal? ValorHoraManual);
 
 public record SalarioDto(int Id, DateOnly VigenteDesde, decimal SalarioMensual, decimal? ValorHoraManual);

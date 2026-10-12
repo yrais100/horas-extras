@@ -99,6 +99,23 @@ describe('ClienteApi', () => {
     expect(llamadas[1].url).toBe('http://api/api/sesiones/3');
   });
 
+  it('registra por cantidad de horas, ajusta y cambia observaciones', async () => {
+    const almacen = almacenEnMemoria({ accessToken: 'a', refreshToken: 'r', venceEn: ahora + 3_600_000 });
+    const { f, llamadas } = fetchFalso(() => respuesta(200, {}));
+    const api = new ClienteApi({ baseUrl: 'http://api', almacen, fetch: f, ahora: () => ahora });
+    await api.registrarPorHoras({ fecha: '2026-10-04', horas: 1.5, nota: '  Inventario ' });
+    await api.ajustarSesion(7, { fecha: '2026-10-04', horas: 2, horaInicio: '10:00:00' });
+    await api.cambiarNota(7, '   ');
+    expect(llamadas.map((l) => `${l.init.method} ${l.url}`)).toEqual([
+      'POST http://api/api/sesiones/por-horas',
+      'PUT http://api/api/sesiones/7',
+      'PUT http://api/api/sesiones/7/nota',
+    ]);
+    expect(JSON.parse(llamadas[0].init.body as string)).toEqual({ fecha: '2026-10-04', horaInicio: null, horas: 1.5, nota: 'Inventario' });
+    expect(JSON.parse(llamadas[1].init.body as string)).toEqual({ fecha: '2026-10-04', horaInicio: '10:00:00', horas: 2, nota: null });
+    expect(JSON.parse(llamadas[2].init.body as string)).toEqual({ nota: null });
+  });
+
   it('pasa el periodo en la consulta', async () => {
     const almacen = almacenEnMemoria({ accessToken: 'a', refreshToken: 'r', venceEn: ahora + 3_600_000 });
     const { f, llamadas } = fetchFalso(() => respuesta(200, []));

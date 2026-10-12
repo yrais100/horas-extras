@@ -159,3 +159,78 @@ public class ApiTests : IClassFixture<Fabrica>
         Assert.Equal(HttpStatusCode.Unauthorized, (await c.GetAsync("/api/estado")).StatusCode);
     }
 }
+
+public class RegistroManualTests : IClassFixture<Fabrica>
+{
+    private readonly Fabrica _app;
+
+    public RegistroManualTests(Fabrica app) => _app = app;
+
+    private async Task<HttpClient> Cliente(string email)
+    {
+        var c = _app.CreateClient();
+        Assert.True((await c.PostAsJsonAsync("/api/auth/register", new { email, password = "Clave.Segura1" })).IsSuccessStatusCode);
+        var t = await Json(await c.PostAsJsonAsync("/api/auth/login", new { email, password = "Clave.Segura1" }));
+        c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", t.GetProperty("accessToken").GetString());
+        return c;
+    }
+
+    private static async Task<JsonElement> Json(HttpResponseMessage r)
+    {
+        Assert.True(r.IsSuccessStatusCode, $"{(int)r.StatusCode}: {await r.Content.ReadAsStringAsync()}");
+        return await r.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    private static async Task<decimal> Total(HttpClient c) =>
+        (await Json(await c.GetAsync("/api/liquidacion"))).GetProperty("valorTotal").GetDecimal();
+
+    [Fact]
+    public async Task PorCantidadDeHorasAjusteYObservaciones()
+    {
+        var caro = await Cliente("caro@ejemplo.co");
+        var dani = await Cliente("dani@ejemplo.co");
+        await Json(await caro.PostAsJsonAsync("/api/perfil/salarios", new { vigenteDesde = "2026-01-01", salarioMensual = 2_100_000 })); // 10.000/h
+
+        // Jueves 1 de octubre, 2 horas sin hora de inicio: se asume 6:00 p. m. → 1 h diurna + 1 h nocturna.
+        var jueves = await Json(await caro.PostAsJsonAsync("/api/sesiones/por-horas",
+            new { fecha = "2026-10-01", horas = 2, nota = "Cierre de inventario" }));
+        Assert.Equal(7200, jueves.GetProperty("segundosAcumulados").GetInt64());
+        Assert.Equal("Cierre de inventario", jueves.GetProperty("nota").GetString());
+        Assert.Equal(30_000m, await Total(caro));
+
+        // Domingo 4 de octubre, 1 hora desde las 10:00 a. m.: dominical diurna (+115 %).
+        var domingo = await Json(await caro.PostAsJsonAsync("/api/sesiones/por-horas",
+            new { fecha = "2026-10-04", horaInicio = "10:00:00", horas = 1 }));
+        Assert.Equal(51_500m, await Total(caro));
+
+        // Ajuste manual: el domingo fueron 2 horas, con observaciones.
+        var id = domingo.GetProperty("id").GetInt32();
+        var ajustada = await Json(await caro.PutAsJsonAsync($"/api/sesiones/{id}",
+            new { fecha = "2026-10-04", horaInicio = "10:00:00", horas = 2, nota = "Soporte al cierre" }));
+        Assert.Equal(7200, ajustada.GetProperty("segundosAcumulados").GetInt64());
+        Assert.Equal(73_000m, await Total(caro));
+
+        // Observaciones de una sesión en curso; no se puede ajustar el tiempo hasta finalizarla.
+        var abierta = await Json(await caro.PostAsync("/api/sesiones/iniciar", null));
+        var idAbierta = abierta.GetProperty("id").GetInt32();
+        var conNota = await Json(await caro.PutAsJsonAsync($"/api/sesiones/{idAbierta}/nota", new { nota = "  Migración de datos  " }));
+        Assert.Equal("Migración de datos", conNota.GetProperty("nota").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await caro.PutAsJsonAsync($"/api/sesiones/{idAbierta}",
+            new { fecha = "2026-10-08", horaInicio = "10:00:00", horas = 1 })).StatusCode);
+
+        // Otro usuario no puede tocar sus registros.
+        Assert.Equal(HttpStatusCode.NotFound, (await dani.PutAsJsonAsync($"/api/sesiones/{id}/nota", new { nota = "x" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await dani.PutAsJsonAsync($"/api/sesiones/{id}",
+            new { fecha = "2026-10-04", horaInicio = "10:00:00", horas = 1 })).StatusCode);
+
+        // Validaciones: horas en el futuro, cero horas, más de 24 y observaciones demasiado largas.
+        Assert.Equal(HttpStatusCode.BadRequest, (await caro.PostAsJsonAsync("/api/sesiones/por-horas",
+            new { fecha = "2026-10-09", horas = 1 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await caro.PostAsJsonAsync("/api/sesiones/por-horas",
+            new { fecha = "2026-10-05", horas = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await caro.PostAsJsonAsync("/api/sesiones/por-horas",
+            new { fecha = "2026-10-05", horas = 25 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await caro.PutAsJsonAsync($"/api/sesiones/{id}/nota",
+            new { nota = new string('a', 2001) })).StatusCode);
+    }
+}

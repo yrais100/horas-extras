@@ -57,12 +57,20 @@ public class LiquidacionService(IAppDbContextFactory fabrica, TimeProvider reloj
         var (desde, hasta) = Consultas.RangoUtc(periodo);
         desde = desde.AddDays(-1);
         hasta = hasta.AddDays(1);
-        var tramos = await db.Sesiones.Where(s => s.UsuarioId == usuarioId)
-            .SelectMany(s => s.Tramos)
-            .Where(t => t.InicioUtc < hasta && (t.FinUtc == null || t.FinUtc > desde))
+        var tramos = await db.Sesiones.Where(s => s.UsuarioId == usuarioId && s.Revision != RevisionSesion.Rechazada)
+            .SelectMany(s => s.Tramos, (s, t) => new { s.Revision, Tramo = t })
+            .Where(x => x.Tramo.InicioUtc < hasta && (x.Tramo.FinUtc == null || x.Tramo.FinUtc > desde))
             .ToListAsync(ct);
         var config = await db.Recargos.FindAsync([usuarioId], ct) ?? ConfiguracionRecargos.PorDefecto(usuarioId);
         var salarios = await db.Salarios.Where(s => s.UsuarioId == usuarioId).ToListAsync(ct);
-        return Liquidador.Liquidar(tramos, new ResolutorParametros(config, salarios), periodo, Ahora);
+        var resolutor = new ResolutorParametros(config, salarios);
+
+        // Solo cuenta lo aprobado; lo pendiente se informa aparte para que nadie se lleve una sorpresa.
+        var r = Liquidador.Liquidar(tramos.Where(x => x.Revision == RevisionSesion.Aprobada).Select(x => x.Tramo), resolutor, periodo, Ahora);
+        var pendientes = Liquidador.Liquidar(tramos.Where(x => x.Revision == RevisionSesion.Pendiente).Select(x => x.Tramo), resolutor, periodo, Ahora);
+        if (pendientes.HorasTotales == 0) return r;
+        var avisos = r.Avisos.Append(
+            $"Hay {pendientes.HorasTotales:0.##} h por aprobar ({pendientes.ValorTotal:C0}) que no suman hasta que el administrador las revise.").ToList();
+        return r with { Avisos = avisos, HorasPorAprobar = pendientes.HorasTotales, ValorPorAprobar = pendientes.ValorTotal };
     }
 }

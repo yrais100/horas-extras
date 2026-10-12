@@ -9,6 +9,7 @@ namespace HorasExtras.Infrastructure;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<Usuario>(options), IAppDbContext
 {
     public const string RolAdmin = "Admin";
+    public const string RolAdminNormalizado = "ADMIN";
 
     /// <summary>
     /// Esquema propio en PostgreSQL. En Supabase el esquema "public" queda expuesto por su API REST,
@@ -36,12 +37,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         base.OnModelCreating(b);
         if (!Database.IsSqlite()) b.HasDefaultSchema(Esquema);
 
+        b.Entity<Usuario>(e => e.Property(x => x.Estado).HasConversion<string>().HasMaxLength(20));
+
         b.Entity<Sesion>(e =>
         {
             e.ToTable("Sesiones");
             e.Property(x => x.UsuarioId).HasMaxLength(450);
             e.Property(x => x.Estado).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Nota).HasMaxLength(Sesion.LargoMaximoNota);
+            e.Property(x => x.Revision).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ComentarioRevision).HasMaxLength(Sesion.LargoMaximoComentario);
+            e.Property(x => x.RevisadaPor).HasMaxLength(450);
+            e.HasIndex(x => x.Revision);
             e.HasOne<Usuario>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Tramos).WithOne().HasForeignKey(t => t.SesionId).OnDelete(DeleteBehavior.Cascade);
             e.Ignore(x => x.InicioUtc);

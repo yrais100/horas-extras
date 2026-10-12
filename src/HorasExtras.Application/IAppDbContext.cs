@@ -20,3 +20,9 @@ public interface IAppDbContextFactory
 {
     IAppDbContext Crear();
 }
+
+/// <summary>Consulta de roles, para que la capa de aplicación no dependa de Identity.</summary>
+public interface IRolesUsuario
+{
+    Task<bool> EsAdminAsync(string usuarioId, CancellationToken ct = default);
+}

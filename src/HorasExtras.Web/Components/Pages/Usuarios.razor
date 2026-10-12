@@ -1,27 +1,63 @@
 @page "/admin/usuarios"
 @attribute [Authorize(Roles = AppDbContext.RolAdmin)]
+@inherits PaginaUsuario
 @using HorasExtras.Infrastructure
-@using Microsoft.AspNetCore.Identity
-@using Microsoft.EntityFrameworkCore
-@inject UserManager<Usuario> Gestor
-@inject LiquidacionService Liquidacion
+@inject AdministracionService Admin
 
 <PageTitle>Usuarios · Horas Extras</PageTitle>
 
-<h1 class="h4 mb-3">Usuarios · quincena actual</h1>
+<h1 class="h4 mb-3">Usuarios</h1>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<p class="small text-body-secondary">
+    Quien se registra queda por aprobar y no puede ingresar hasta que lo apruebes. Las horas y el valor son de la quincena actual:
+    solo suma lo aprobado.
+</p>
 
 <div class="card">
     <div class="card-body table-responsive">
-        <table class="table table-sm mb-0">
-            <thead><tr><th>Usuario</th><th class="text-end">Días</th><th class="text-end">Horas</th><th class="text-end">Valor</th></tr></thead>
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Usuario</th><th>Estado</th><th class="text-end">Días</th><th class="text-end">Horas</th>
+                    <th class="text-end">Por aprobar</th><th class="text-end">Valor</th><th></th>
+                </tr>
+            </thead>
             <tbody>
-                @foreach (var (u, r) in filas)
+                @foreach (var u in filas)
                 {
                     <tr>
-                        <td>@(u.Nombre ?? u.Email)</td>
-                        <td class="text-end">@r.DiasTrabajados</td>
-                        <td class="text-end">@Formato.Horas(r.HorasTotales)</td>
-                        <td class="text-end">@Formato.Pesos(r.ValorTotal)</td>
+                        <td>
+                            @(u.Nombre ?? u.Email)
+                            @if (u.EsAdmin)
+                            {
+                                <span class="badge text-bg-primary ms-1">Admin</span>
+                            }
+                        </td>
+                        <td><span class="badge @Insignia(u.Estado)">@Formato.Nombre(u.Estado)</span></td>
+                        <td class="text-end">@u.DiasTrabajados</td>
+                        <td class="text-end">@Formato.Horas(u.HorasQuincena)</td>
+                        <td class="text-end">@(u.HorasPorAprobar == 0 ? "—" : Formato.Horas(u.HorasPorAprobar))</td>
+                        <td class="text-end">@Formato.Pesos(u.ValorQuincena)</td>
+                        <td class="text-end text-nowrap">
+                            @if (u.Estado != EstadoUsuario.Activo)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => Aprobar(u.Id)">@(u.Estado == EstadoUsuario.Pendiente ? "Aprobar" : "Reactivar")</button>
+                            }
+                            <a class="btn btn-sm btn-outline-secondary" href="admin/usuarios/@u.Id/perfil">Salario</a>
+                            @if (u.Id != UsuarioId)
+                            {
+                                @if (u.Estado == EstadoUsuario.Activo)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => CambiarAdmin(u.Id, !u.EsAdmin)">@(u.EsAdmin ? "Quitar admin" : "Hacer admin")</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Desactivar(u.Id)">Desactivar</button>
+                                }
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -30,11 +66,32 @@
 </div>
 
 @code {
-    private List<(Usuario, ResultadoLiquidacion)> filas = [];
+    private IReadOnlyList<UsuarioAdminDto> filas = [];
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task CargarAsync() => filas = await Admin.UsuariosAsync();
+
+    private static string Insignia(EstadoUsuario e) => e switch
     {
-        foreach (var u in await Gestor.Users.OrderBy(x => x.Email).ToListAsync())
-            filas.Add((u, await Liquidacion.CalcularAsync(u.Id)));
-    }
+        EstadoUsuario.Activo => "text-bg-success",
+        EstadoUsuario.Inactivo => "text-bg-secondary",
+        _ => "text-bg-warning",
+    };
+
+    private Task Aprobar(string id) => Intentar(async () =>
+    {
+        await Admin.AprobarAsync(id);
+        await CargarAsync();
+    });
+
+    private Task Desactivar(string id) => Intentar(async () =>
+    {
+        await Admin.DesactivarAsync(UsuarioId, id);
+        await CargarAsync();
+    });
+
+    private Task CambiarAdmin(string id, bool esAdmin) => Intentar(async () =>
+    {
+        await Admin.CambiarAdminAsync(UsuarioId, id, esAdmin);
+        await CargarAsync();
+    });
 }

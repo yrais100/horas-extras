@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ClienteApi, normalizarBaseUrl } from './api';
+import { ApiError, ClienteApi, normalizarBaseUrl } from './api';
 import { almacenSeguro, guardarEmail, guardarServidor, leerEmail, leerServidor } from './almacen';
 import { servidorPorDefecto } from './config';
+import type { Cuenta } from './tipos';
 
 type Estado = 'cargando' | 'fuera' | 'dentro';
 
@@ -10,8 +11,11 @@ interface ValorSesion {
   api: ClienteApi;
   servidor: string;
   email: string | null;
+  /** Datos y rol del usuario que ingresó; null mientras carga o si no hay sesión. */
+  cuenta: Cuenta | null;
   ingresar(email: string, password: string): Promise<void>;
-  registrar(email: string, password: string): Promise<void>;
+  /** Crea la cuenta e ingresa si ya está activa; 'pendiente' si un administrador debe aprobarla. */
+  registrar(email: string, password: string): Promise<'dentro' | 'pendiente'>;
   salir(): Promise<void>;
   /** Cambia el servidor de la API. Cierra la sesión, porque los tokens son de cada servidor. */
   cambiarServidor(url: string): Promise<void>;
@@ -23,6 +27,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>('cargando');
   const [servidor, setServidor] = useState(servidorPorDefecto());
   const [email, setEmail] = useState<string | null>(null);
+  const [cuenta, setCuenta] = useState<Cuenta | null>(null);
 
   const api = useMemo(
     () => new ClienteApi({ baseUrl: servidor, almacen: almacenSeguro, alExpirar: () => setEstado('fuera') }),
@@ -39,11 +44,24 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     })().catch(() => setEstado('fuera'));
   }, []);
 
+  useEffect(() => {
+    if (estado !== 'dentro') return;
+    let vigente = true;
+    api
+      .cuenta()
+      .then((c) => vigente && setCuenta(c))
+      .catch(() => vigente && setCuenta(null));
+    return () => {
+      vigente = false;
+    };
+  }, [estado, api]);
+
   const ingresar = useCallback(
     async (correo: string, password: string) => {
       await api.ingresar(correo, password);
       await guardarEmail(correo.trim());
       setEmail(correo.trim());
+      setCuenta(null); // la de un ingreso anterior no aplica; el efecto carga la nueva
       setEstado('dentro');
     },
     [api],
@@ -52,7 +70,14 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const registrar = useCallback(
     async (correo: string, password: string) => {
       await api.registrar(correo, password);
-      await ingresar(correo, password);
+      try {
+        await ingresar(correo, password);
+        return 'dentro' as const;
+      } catch (e) {
+        // La cuenta quedó creada; solo falta que un administrador la apruebe.
+        if (e instanceof ApiError && e.status === 401) return 'pendiente' as const;
+        throw e;
+      }
     },
     [api, ingresar],
   );
@@ -77,8 +102,8 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   );
 
   const valor = useMemo(
-    () => ({ estado, api, servidor, email, ingresar, registrar, salir, cambiarServidor }),
-    [estado, api, servidor, email, ingresar, registrar, salir, cambiarServidor],
+    () => ({ estado, api, servidor, email, cuenta: estado === 'dentro' ? cuenta : null, ingresar, registrar, salir, cambiarServidor }),
+    [estado, api, servidor, email, cuenta, ingresar, registrar, salir, cambiarServidor],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

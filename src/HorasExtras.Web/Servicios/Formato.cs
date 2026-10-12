@@ -35,4 +35,26 @@ public static class Formato
         EstadoSesion.Pausada => "Pausada",
         _ => "Finalizada",
     };
+
+    public static string Nombre(RevisionSesion r) => r switch
+    {
+        RevisionSesion.Aprobada => "Aprobada",
+        RevisionSesion.Rechazada => "Rechazada",
+        _ => "Por aprobar",
+    };
+
+    /// <summary>Clase de Bootstrap para la etiqueta del estado de revisión.</summary>
+    public static string Insignia(RevisionSesion r) => r switch
+    {
+        RevisionSesion.Aprobada => "text-bg-success",
+        RevisionSesion.Rechazada => "text-bg-danger",
+        _ => "text-bg-warning",
+    };
+
+    public static string Nombre(Infrastructure.EstadoUsuario e) => e switch
+    {
+        Infrastructure.EstadoUsuario.Activo => "Activo",
+        Infrastructure.EstadoUsuario.Inactivo => "Desactivado",
+        _ => "Por aprobar",
+    };
 }

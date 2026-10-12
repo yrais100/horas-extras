@@ -1,5 +1,6 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Aviso, Boton, Campo, Pantalla, Suave, Tarjeta } from '../components/ui';
+import { Aviso, Boton, Campo, colores, Pantalla, Suave, Tarjeta } from '../components/ui';
 import { useSesion } from '../lib/sesion';
 import { mensajeDe } from '../lib/useCarga';
 
@@ -10,6 +11,7 @@ export default function Registro() {
   const [confirmacion, setConfirmacion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [pendiente, setPendiente] = useState(false);
 
   const enviar = async () => {
     setError(null);
@@ -17,12 +19,30 @@ export default function Registro() {
     if (clave !== confirmacion) return setError('Las claves no coinciden.');
     setOcupado(true);
     try {
-      await registrar(email, clave);
+      if ((await registrar(email, clave)) === 'pendiente') {
+        setPendiente(true);
+        setOcupado(false);
+      }
     } catch (e) {
       setError(mensajeDe(e));
       setOcupado(false);
     }
   };
+
+  if (pendiente)
+    return (
+      <Pantalla>
+        <Tarjeta titulo="Cuenta creada">
+          <Aviso tipo="exito">
+            Tu cuenta quedó pendiente de aprobación. Cuando un administrador la apruebe, ingresa con tu correo y tu
+            clave.
+          </Aviso>
+          <Link href="/ingresar" style={{ color: colores.primario, textAlign: 'center', padding: 8 }}>
+            Volver a ingresar
+          </Link>
+        </Tarjeta>
+      </Pantalla>
+    );
 
   return (
     <Pantalla>

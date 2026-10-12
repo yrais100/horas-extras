@@ -143,6 +143,10 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ComentarioRevision")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTime>("CreadaEnUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -155,12 +159,26 @@ namespace HorasExtras.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<DateTime?>("RevisadaEnUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevisadaPor")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<string>("Revision")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("UsuarioId")
                         .IsRequired()
                         .HasMaxLength(450)
                         .HasColumnType("character varying(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Revision");
 
                     b.HasIndex("UsuarioId")
                         .IsUnique()
@@ -214,6 +232,11 @@ namespace HorasExtras.Infrastructure.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");

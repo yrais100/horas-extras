@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddScoped<RegistroHorasService>();
         services.AddScoped<LiquidacionService>();
         services.AddScoped<PerfilService>();
+        services.AddScoped<RevisionService>();
         return services;
     }
 }

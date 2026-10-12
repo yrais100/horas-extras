@@ -6,8 +6,19 @@ import type { ClienteApi } from '../../lib/api';
 import { fecha, fechaHoraLocal, horaLocal, horas, leerNumero, nombreEstado, pesos } from '../../lib/formato';
 import { useSesion } from '../../lib/sesion';
 import { aColombia, fechaDe, HORA_INICIO_POR_DEFECTO, horaDeMinutos, hoy, leerUtc, tipoDeDia } from '../../lib/tiempo';
-import type { Festivo, Sesion } from '../../lib/tipos';
+import type { Festivo, Revision, Sesion } from '../../lib/tipos';
 import { mensajeDe, useCarga } from '../../lib/useCarga';
+
+const REVISION: Record<Revision, { texto: string; color: string }> = {
+  Pendiente: { texto: 'Por aprobar', color: colores.advertencia },
+  Aprobada: { texto: 'Aprobada', color: colores.exito },
+  Rechazada: { texto: 'Rechazada', color: colores.peligro },
+};
+
+function Insignia({ revision }: { revision: Revision }) {
+  const r = REVISION[revision];
+  return <Text style={[e.insignia, { color: r.color, borderColor: r.color }]}>{r.texto}</Text>;
+}
 
 /** Hora actual redondeada hacia abajo a 5 minutos. */
 function ahoraRedondeado(): Date {
@@ -100,7 +111,8 @@ function EditorSesion({
 }
 
 export default function Historial() {
-  const { api } = useSesion();
+  const { api, cuenta } = useSesion();
+  const esAdmin = cuenta?.esAdmin ?? false;
   const cargar = useCallback(async () => {
     const anio = Number(hoy().slice(0, 4));
     const [sesiones, liquidaciones, festivos] = await Promise.all([
@@ -187,6 +199,7 @@ export default function Historial() {
         <Suave>
           Para olvidos o correcciones. Hora de Colombia. El recargo se calcula según el día (ordinario, dominical o festivo)
           y la franja diurna o nocturna.
+          {esAdmin ? '' : ' Tus registros suman en la liquidación cuando el administrador los aprueba.'}
         </Suave>
         <Segmentos
           opciones={[
@@ -237,11 +250,17 @@ export default function Historial() {
                   {s.finUtc ? `Hasta ${horaLocal(s.finUtc)}` : nombreEstado(s.estado)} · {horas(s.segundosAcumulados / 3600)}
                 </Suave>
                 {s.nota ? <Suave>{s.nota}</Suave> : null}
+                {s.estado === 'Finalizada' ? <Insignia revision={s.revision} /> : null}
+                {s.revision === 'Rechazada' && s.comentarioRevision ? (
+                  <Text style={{ color: colores.peligro }}>Motivo: {s.comentarioRevision}</Text>
+                ) : null}
               </View>
-              <View style={{ gap: 6 }}>
-                <Boton titulo="Editar" variante="secundario" onPress={() => setEditando(s.id)} />
-                <Boton titulo="Eliminar" variante="peligroBorde" onPress={() => eliminar(s.id, fechaHoraLocal(s.inicioUtc))} />
-              </View>
+              {esAdmin || s.revision !== 'Aprobada' ? (
+                <View style={{ gap: 6 }}>
+                  <Boton titulo="Editar" variante="secundario" onPress={() => setEditando(s.id)} />
+                  <Boton titulo="Eliminar" variante="peligroBorde" onPress={() => eliminar(s.id, fechaHoraLocal(s.inicioUtc))} />
+                </View>
+              ) : null}
             </View>
           ),
         )}
@@ -278,6 +297,16 @@ const e = StyleSheet.create({
     borderTopColor: colores.borde,
   },
   principal: { fontSize: 15, fontWeight: '600', color: colores.texto },
+  insignia: {
+    alignSelf: 'flex-start',
+    fontSize: 12,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginTop: 2,
+  },
   editor: {
     gap: 8,
     paddingVertical: 10,

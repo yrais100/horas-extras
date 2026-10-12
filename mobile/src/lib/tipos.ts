@@ -4,6 +4,9 @@
 export type EstadoSesion = 'EnCurso' | 'Pausada' | 'Finalizada';
 export type Categoria = 'Diurna' | 'Nocturna' | 'DominicalDiurna' | 'DominicalNocturna';
 export type ModoRecargos = 'Ley' | 'Manual';
+/** Solo las horas aprobadas por el administrador suman en la liquidación. */
+export type Revision = 'Pendiente' | 'Aprobada' | 'Rechazada';
+export type EstadoUsuario = 'Pendiente' | 'Activo' | 'Inactivo';
 
 /** Fecha local de Colombia, "AAAA-MM-DD". */
 export type Fecha = string;
@@ -28,6 +31,10 @@ export interface Sesion {
   finUtc: string | null;
   segundosAcumulados: number;
   tramos: Tramo[];
+  revision: Revision;
+  /** Motivo del rechazo, escrito por el administrador. */
+  comentarioRevision: string | null;
+  revisadaEnUtc: string | null;
 }
 
 export interface RegistroPorHoras {
@@ -71,6 +78,9 @@ export interface Liquidacion {
   dias: DetalleDia[];
   valorHoraActual: number;
   avisos: string[];
+  /** Horas registradas que el administrador aún no revisa; no suman en los totales. */
+  horasPorAprobar?: number;
+  valorPorAprobar?: number;
 }
 
 export interface LiquidacionGuardada {
@@ -121,4 +131,33 @@ export interface ValoresLey {
 export interface Periodo {
   desde: Fecha;
   hasta: Fecha;
+}
+
+export interface Cuenta {
+  id: string;
+  email: string | null;
+  nombre: string | null;
+  estado: EstadoUsuario;
+  esAdmin: boolean;
+}
+
+/** Fila de la lista de usuarios del administrador (quincena actual). */
+export interface UsuarioAdmin {
+  id: string;
+  email: string | null;
+  nombre: string | null;
+  estado: EstadoUsuario;
+  esAdmin: boolean;
+  horasQuincena: number;
+  valorQuincena: number;
+  diasTrabajados: number;
+  horasPorAprobar: number;
+}
+
+/** Sesión de cualquier usuario en la bandeja de revisión. */
+export interface SesionUsuario {
+  usuarioId: string;
+  email: string | null;
+  nombre: string | null;
+  sesion: Sesion;
 }

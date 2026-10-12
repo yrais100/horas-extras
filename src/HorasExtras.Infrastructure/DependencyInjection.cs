@@ -25,6 +25,7 @@ public static class DependencyInjection
                 .EnableRetryOnFailure(3)); // reintenta cortes breves de red con la base de datos administrada
         });
         services.AddSingleton<IAppDbContextFactory, AppDbContextFactory>();
+        services.AddSingleton<IRolesUsuario, RolesUsuario>();
         return services;
     }
 
@@ -46,6 +47,16 @@ public static class DependencyInjection
         catch (Exception e)
         {
             return $"{e.GetType().Name}: {(e.InnerException ?? e).Message}";
+        }
+    }
+
+    private class RolesUsuario(IDbContextFactory<AppDbContext> fabrica) : IRolesUsuario
+    {
+        public async Task<bool> EsAdminAsync(string usuarioId, CancellationToken ct = default)
+        {
+            await using var db = await fabrica.CreateDbContextAsync(ct);
+            return await db.UserRoles.AnyAsync(ur => ur.UserId == usuarioId
+                && db.Roles.Any(r => r.Id == ur.RoleId && r.NormalizedName == AppDbContext.RolAdminNormalizado), ct);
         }
     }
 

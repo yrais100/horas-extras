@@ -59,7 +59,8 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<Usuario>(options =>
     {
-        options.SignIn.RequireConfirmedAccount = false; // sin servidor de correo en el MVP
+        // No hay servidor de correo: "cuenta confirmada" significa aprobada por un administrador (ver CuentaActiva).
+        options.SignIn.RequireConfirmedAccount = true;
         options.User.RequireUniqueEmail = true;
         options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
     })
@@ -71,6 +72,8 @@ builder.Services.AddIdentityCore<Usuario>(options =>
     .AddDefaultTokenProviders()
     .AddApiEndpoints();
 
+builder.Services.AddScoped<IUserConfirmation<Usuario>, CuentaActiva>();
+builder.Services.AddScoped<AdministracionService>();
 builder.Services.AddSingleton<IEmailSender<Usuario>, IdentityNoOpEmailSender>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
@@ -88,6 +91,17 @@ if (errorBaseDeDatos is null)
     using var scope = app.Services.CreateScope();
     var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     if (!await roles.RoleExistsAsync(AppDbContext.RolAdmin)) await roles.CreateAsync(new IdentityRole(AppDbContext.RolAdmin));
+
+    // Si la base quedó sin administrador y hay un solo usuario (por ejemplo, se registró cuando el rol aún
+    // no existía), ese usuario es el dueño: se le da el rol para que nadie más lo reclame al registrarse.
+    var usuarios = scope.ServiceProvider.GetRequiredService<UserManager<Usuario>>();
+    if ((await usuarios.GetUsersInRoleAsync(AppDbContext.RolAdmin)).Count == 0 && await usuarios.Users.CountAsync() == 1)
+    {
+        var unico = await usuarios.Users.SingleAsync();
+        unico.Estado = EstadoUsuario.Activo;
+        await usuarios.UpdateAsync(unico);
+        await usuarios.AddToRoleAsync(unico, AppDbContext.RolAdmin);
+    }
 }
 else
 {

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HorasExtras.Application;
 using HorasExtras.Domain;
 using HorasExtras.Domain.Calculo;
+using HorasExtras.Domain.Entidades;
 using HorasExtras.Infrastructure;
 using HorasExtras.Web.Servicios;
 using Microsoft.AspNetCore.Identity;
@@ -15,7 +16,10 @@ public static class PoliticasApi
     public const string Admin = "api-admin";
 }
 
-/// <summary>API REST para la app móvil. Todas las rutas actúan sobre el usuario autenticado.</summary>
+/// <summary>
+/// API REST para la app móvil. Las rutas actúan sobre el usuario autenticado, salvo /api/admin, que es
+/// solo para administradores.
+/// </summary>
 public static class HorasExtrasApi
 {
     public static void MapHorasExtrasApi(this WebApplication app)
@@ -24,6 +28,8 @@ public static class HorasExtrasApi
         app.MapGroup("/api/auth").WithTags("Autenticación").MapIdentityApi<Usuario>();
 
         var api = app.MapGroup("/api").RequireAuthorization(PoliticasApi.Usuario).AddEndpointFilter(TraducirErrores);
+
+        api.MapGet("/cuenta", (AdministracionService a, ClaimsPrincipal u) => a.CuentaAsync(u.Id())).WithTags("Cuenta");
 
         var sesiones = api.MapGroup("/sesiones").WithTags("Sesiones");
         api.MapGet("/estado", (RegistroHorasService s, ClaimsPrincipal u, CancellationToken ct) => s.EstadoAsync(u.Id(), ct))
@@ -57,34 +63,81 @@ public static class HorasExtrasApi
         liq.MapGet("/", (LiquidacionService l, ClaimsPrincipal u, CancellationToken ct) => l.HistorialAsync(u.Id(), ct));
         liq.MapGet("/{id:int}", (LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) => l.DetalleGuardadoAsync(u.Id(), id, ct));
 
+        // El salario y los recargos los define el administrador; cada usuario solo los consulta.
         var perfil = api.MapGroup("/perfil").WithTags("Perfil");
         perfil.MapGet("/salarios", (PerfilService p, ClaimsPrincipal u, CancellationToken ct) => p.SalariosAsync(u.Id(), ct));
         perfil.MapPost("/salarios", (PerfilService p, ClaimsPrincipal u, SalarioInput body, CancellationToken ct) =>
-            p.GuardarSalarioAsync(u.Id(), body, ct));
+            p.GuardarSalarioAsync(u.Id(), body, ct)).RequireAuthorization(PoliticasApi.Admin);
         perfil.MapDelete("/salarios/{id:int}", async (PerfilService p, ClaimsPrincipal u, int id, CancellationToken ct) =>
         {
             await p.EliminarSalarioAsync(u.Id(), id, ct);
             return Results.NoContent();
-        });
+        }).RequireAuthorization(PoliticasApi.Admin);
         perfil.MapGet("/recargos", (PerfilService p, ClaimsPrincipal u, CancellationToken ct) => p.RecargosAsync(u.Id(), ct));
         perfil.MapPut("/recargos", (PerfilService p, ClaimsPrincipal u, RecargosDto body, CancellationToken ct) =>
-            p.GuardarRecargosAsync(u.Id(), body, ct));
+            p.GuardarRecargosAsync(u.Id(), body, ct)).RequireAuthorization(PoliticasApi.Admin);
 
         var refe = api.MapGroup("/referencia").WithTags("Referencia");
         refe.MapGet("/ley", (DateOnly? fecha, TimeProvider reloj) => ValoresLey.Para(fecha ?? ZonaHoraria.Hoy(reloj)));
         refe.MapGet("/festivos", (int? anio, TimeProvider reloj) => Festivos.DelAnio(anio ?? ZonaHoraria.Hoy(reloj).Year));
 
-        api.MapGet("/admin/usuarios", async (UserManager<Usuario> um, LiquidacionService l, CancellationToken ct) =>
+        MapAdmin(api.MapGroup("/admin").RequireAuthorization(PoliticasApi.Admin).WithTags("Administración"));
+    }
+
+    private static void MapAdmin(RouteGroupBuilder admin)
+    {
+        admin.MapGet("/usuarios", (AdministracionService a, CancellationToken ct) => a.UsuariosAsync(ct));
+        admin.MapPost("/usuarios/{id}/aprobar", async (AdministracionService a, string id) =>
         {
-            var usuarios = await um.Users.OrderBy(x => x.Email).ToListAsync(ct);
-            var filas = new List<ResumenUsuarioDto>();
-            foreach (var x in usuarios)
+            await a.AprobarAsync(id);
+            return Results.NoContent();
+        });
+        admin.MapPost("/usuarios/{id}/desactivar", async (AdministracionService a, ClaimsPrincipal u, string id) =>
+        {
+            await a.DesactivarAsync(u.Id(), id);
+            return Results.NoContent();
+        });
+        admin.MapPut("/usuarios/{id}/admin", async (AdministracionService a, ClaimsPrincipal u, string id, RolInput body) =>
+        {
+            await a.CambiarAdminAsync(u.Id(), id, body.EsAdmin);
+            return Results.NoContent();
+        });
+
+        // Salario, recargos y liquidación de cualquier usuario.
+        var usuario = admin.MapGroup("/usuarios/{id}").AddEndpointFilter(async (ctx, next) =>
+        {
+            await ctx.HttpContext.RequestServices.GetRequiredService<AdministracionService>().Exigir((string)ctx.HttpContext.GetRouteValue("id")!);
+            return await next(ctx);
+        });
+        usuario.MapGet("/salarios", (PerfilService p, string id, CancellationToken ct) => p.SalariosAsync(id, ct));
+        usuario.MapPost("/salarios", (PerfilService p, string id, SalarioInput body, CancellationToken ct) => p.GuardarSalarioAsync(id, body, ct));
+        usuario.MapDelete("/salarios/{salarioId:int}", async (PerfilService p, string id, int salarioId, CancellationToken ct) =>
+        {
+            await p.EliminarSalarioAsync(id, salarioId, ct);
+            return Results.NoContent();
+        });
+        usuario.MapGet("/recargos", (PerfilService p, string id, CancellationToken ct) => p.RecargosAsync(id, ct));
+        usuario.MapPut("/recargos", (PerfilService p, string id, RecargosDto body, CancellationToken ct) => p.GuardarRecargosAsync(id, body, ct));
+        usuario.MapGet("/liquidacion", (LiquidacionService l, string id, DateOnly? desde, DateOnly? hasta, CancellationToken ct) =>
+            l.CalcularAsync(id, Periodo(l, desde, hasta), ct));
+
+        // Bandeja de revisión: por defecto, todo lo pendiente. "revision=Todas" no filtra por estado.
+        admin.MapGet("/sesiones", (AdministracionService a, LiquidacionService l, string? revision, string? usuarioId,
+            DateOnly? desde, DateOnly? hasta, CancellationToken ct) =>
+        {
+            RevisionSesion? filtro = revision switch
             {
-                var r = await l.CalcularAsync(x.Id, null, ct);
-                filas.Add(new(x.Id, x.Email, x.Nombre, r.HorasTotales, r.ValorTotal, r.DiasTrabajados));
-            }
-            return filas;
-        }).RequireAuthorization(PoliticasApi.Admin).WithTags("Administración");
+                null or "" => RevisionSesion.Pendiente,
+                _ when revision.Equals("Todas", StringComparison.OrdinalIgnoreCase) => null,
+                _ when Enum.TryParse<RevisionSesion>(revision, true, out var r) => r,
+                _ => throw new DatosInvalidosException("Estado de revisión no válido."),
+            };
+            return a.SesionesAsync(filtro, Periodo(l, desde, hasta), usuarioId, ct);
+        });
+        admin.MapPost("/sesiones/{id:int}/aprobar", (RevisionService r, ClaimsPrincipal u, int id, CancellationToken ct) =>
+            r.AprobarAsync(u.Id(), id, ct));
+        admin.MapPost("/sesiones/{id:int}/rechazar", (RevisionService r, ClaimsPrincipal u, int id, RechazoInput body, CancellationToken ct) =>
+            r.RechazarAsync(u.Id(), id, body.Comentario, ct));
     }
 
     private static Periodo? Periodo(LiquidacionService l, DateOnly? desde, DateOnly? hasta)
@@ -124,4 +177,4 @@ public record NotaInput(string? Nota);
 
 public record PeriodoInput(DateOnly? Desde, DateOnly? Hasta);
 
-public record ResumenUsuarioDto(string Id, string? Email, string? Nombre, decimal HorasQuincena, decimal ValorQuincena, int DiasTrabajados);
+public record RolInput(bool EsAdmin);

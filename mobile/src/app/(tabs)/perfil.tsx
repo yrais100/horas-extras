@@ -57,7 +57,9 @@ function deEdicion(e: Edicion): Recargos | string {
 }
 
 export default function Perfil() {
-  const { api, email, servidor, salir } = useSesion();
+  const { api, email, servidor, salir, cuenta } = useSesion();
+  // El salario y los recargos los define el administrador; los demás solo los consultan.
+  const esAdmin = cuenta?.esAdmin ?? false;
   const cargar = useCallback(async () => {
     const [salarios, recargos, ley] = await Promise.all([api.salarios(), api.recargos(), api.ley()]);
     return { salarios, recargos, ley };
@@ -152,13 +154,19 @@ export default function Perfil() {
           valor hora manual. Si te cambian el salario, agrégalo con la fecha desde la que rige: las horas anteriores se
           siguen liquidando con el salario anterior.
         </Suave>
-        <SelectorFecha etiqueta="Vigente desde" valor={desde} alCambiar={setDesde} />
-        <Fila campos>
-          <Campo etiqueta="Salario mensual (COP)" value={salario} onChangeText={setSalario} keyboardType="numeric" placeholder="Ej.: 2.500.000" />
-          <Campo etiqueta="Valor hora manual (opcional)" value={valorHora} onChangeText={setValorHora} keyboardType="numeric" />
-        </Fila>
-        <Boton titulo="Guardar salario" onPress={guardarSalario} ocupado={ocupado === 'salario'} />
-        {datos?.salarios.length === 0 ? <Suave>Aún no has registrado tu salario.</Suave> : null}
+        {esAdmin ? (
+          <>
+            <SelectorFecha etiqueta="Vigente desde" valor={desde} alCambiar={setDesde} />
+            <Fila campos>
+              <Campo etiqueta="Salario mensual (COP)" value={salario} onChangeText={setSalario} keyboardType="numeric" placeholder="Ej.: 2.500.000" />
+              <Campo etiqueta="Valor hora manual (opcional)" value={valorHora} onChangeText={setValorHora} keyboardType="numeric" />
+            </Fila>
+            <Boton titulo="Guardar salario" onPress={guardarSalario} ocupado={ocupado === 'salario'} />
+          </>
+        ) : (
+          <Aviso tipo="advertencia">Tu salario lo registra el administrador. Si algo no coincide, pídele que lo corrija.</Aviso>
+        )}
+        {datos?.salarios.length === 0 ? <Suave>Aún no hay salario registrado.</Suave> : null}
         {datos?.salarios.map((s) => (
           <View key={s.id} style={e.fila}>
             <View style={{ flex: 1 }}>
@@ -168,28 +176,34 @@ export default function Perfil() {
                 {s.valorHoraManual ? ` · valor hora manual ${pesos(s.valorHoraManual)}` : ''}
               </Suave>
             </View>
-            <Boton titulo="Eliminar" variante="peligroBorde" onPress={() => eliminarSalario(s.id, s.vigenteDesde)} />
+            {esAdmin ? (
+              <Boton titulo="Eliminar" variante="peligroBorde" onPress={() => eliminarSalario(s.id, s.vigenteDesde)} />
+            ) : null}
           </View>
         ))}
       </Tarjeta>
 
       {edicion && ley ? (
         <Tarjeta titulo="Recargos y jornada nocturna">
-          <View style={e.segmentos}>
-            {(['Ley', 'Manual'] as const).map((m) => (
-              <Pressable
-                key={m}
-                accessibilityRole="button"
-                accessibilityState={{ selected: edicion.modo === m }}
-                onPress={() => editar({ modo: m })}
-                style={[e.segmento, edicion.modo === m && e.segmentoActivo]}
-              >
-                <Text style={[e.textoSegmento, edicion.modo === m && { color: '#fff' }]}>
-                  {m === 'Ley' ? 'Según la ley' : 'Valores manuales'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {esAdmin ? (
+            <View style={e.segmentos}>
+              {(['Ley', 'Manual'] as const).map((m) => (
+                <Pressable
+                  key={m}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: edicion.modo === m }}
+                  onPress={() => editar({ modo: m })}
+                  style={[e.segmento, edicion.modo === m && e.segmentoActivo]}
+                >
+                  <Text style={[e.textoSegmento, edicion.modo === m && { color: '#fff' }]}>
+                    {m === 'Ley' ? 'Según la ley' : 'Valores manuales'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Suave>Los recargos los define el administrador.</Suave>
+          )}
 
           {edicion.modo === 'Ley' ? (
             <Suave>
@@ -197,6 +211,13 @@ export default function Perfil() {
               {ley.jornadaSemanal} h semanales (divisor {ley.horasMensuales} h/mes), extra diurna +{ley.pctExtraDiurna} %,
               extra nocturna +{ley.pctExtraNocturna} %, dominical/festiva diurna +{ley.pctExtraDominicalDiurna} % y nocturna +
               {ley.pctExtraDominicalNocturna} %. Los cambios de ley se aplican solos según la fecha de cada hora.
+            </Suave>
+          ) : !esAdmin && datos?.recargos ? (
+            <Suave>
+              Nocturno de {horaDelDia(datos.recargos.inicioNocturno)} a {horaDelDia(datos.recargos.finNocturno)}, divisor{' '}
+              {datos.recargos.horasMensuales} h/mes, extra diurna +{datos.recargos.pctExtraDiurna} %, extra nocturna +
+              {datos.recargos.pctExtraNocturna} %, dominical/festiva diurna +{datos.recargos.pctExtraDominicalDiurna} % y
+              nocturna +{datos.recargos.pctExtraDominicalNocturna} %.
             </Suave>
           ) : (
             <>
@@ -232,7 +253,7 @@ export default function Perfil() {
               <Boton titulo="Cargar valores de ley" variante="secundario" onPress={() => setCambios(aEdicion(ley, 'Manual'))} />
             </>
           )}
-          <Boton titulo="Guardar recargos" onPress={guardarRecargos} ocupado={ocupado === 'recargos'} />
+          {esAdmin ? <Boton titulo="Guardar recargos" onPress={guardarRecargos} ocupado={ocupado === 'recargos'} /> : null}
           <Suave>
             Revisar: valores de ley tomados del Código Sustantivo del Trabajo, la Ley 2101 de 2021 y la Ley 2466 de 2025.
             Confírmalos con tu área de nómina o un abogado laboral.

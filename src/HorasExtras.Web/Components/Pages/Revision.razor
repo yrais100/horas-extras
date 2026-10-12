@@ -1,0 +1,128 @@
+@page "/admin/revision"
+@attribute [Authorize(Roles = AppDbContext.RolAdmin)]
+@inherits PaginaUsuario
+@using HorasExtras.Infrastructure
+@inject AdministracionService Admin
+@inject RevisionService RevisionSvc
+@inject LiquidacionService Liquidacion
+
+<PageTitle>Revisar horas · Horas Extras</PageTitle>
+
+<h1 class="h4 mb-3">Revisar horas</h1>
+
+@if (Error is not null)
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+            <label class="form-label small">Mostrar</label>
+            <select class="form-select" @bind="filtro" @bind:after="CargarAsync">
+                <option value="Pendiente">Por aprobar (todas las fechas)</option>
+                <option value="Aprobada">Aprobadas</option>
+                <option value="Rechazada">Rechazadas</option>
+                <option value="Todas">Todas</option>
+            </select>
+        </div>
+        @if (filtro != "Pendiente")
+        {
+            <div class="col-6 col-md-3"><label class="form-label small">Desde</label><input type="date" class="form-control" @bind="desde" @bind:after="CargarAsync" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small">Hasta</label><input type="date" class="form-control" @bind="hasta" @bind:after="CargarAsync" /></div>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Usuario</th><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Observaciones</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var f in filas)
+                {
+                    var s = f.Sesion;
+                    <tr>
+                        <td>@(f.Nombre ?? f.Email)</td>
+                        <td>@Formato.FechaHoraLocal(s.InicioUtc)</td>
+                        <td>@Formato.HoraLocal(s.FinUtc)</td>
+                        <td class="text-end">@Formato.Horas(s.SegundosAcumulados / 3600m)</td>
+                        <td class="small text-body-secondary observaciones">@s.Nota</td>
+                        <td>
+                            <span class="badge @Formato.Insignia(s.Revision)">@Formato.Nombre(s.Revision)</span>
+                            @if (s.ComentarioRevision is not null)
+                            {
+                                <div class="small text-body-secondary">@s.ComentarioRevision</div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (s.Revision != RevisionSesion.Aprobada)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => Aprobar(s.Id)">Aprobar</button>
+                            }
+                            @if (s.Revision != RevisionSesion.Rechazada)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => { rechazo = s.Id; motivo = null; Error = null; }">Rechazar</button>
+                            }
+                        </td>
+                    </tr>
+                    @if (rechazo == s.Id)
+                    {
+                        <tr>
+                            <td colspan="7" class="bg-body-tertiary">
+                                <div class="row g-2 py-2">
+                                    <div class="col-12">
+                                        <label class="form-label small">Motivo del rechazo (lo verá la persona para corregir el registro)</label>
+                                        <textarea class="form-control form-control-sm" rows="2" maxlength="@Sesion.LargoMaximoComentario" @bind="motivo"></textarea>
+                                    </div>
+                                    <div class="col-12 d-flex gap-2">
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Rechazar(s.Id)">Rechazar</button>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => rechazo = null">Cancelar</button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                @if (filas.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-body-secondary">@(filtro == "Pendiente" ? "No hay horas por aprobar." : "Sin registros en este periodo.")</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<SesionUsuarioDto> filas = [];
+    private string filtro = "Pendiente";
+    private DateOnly desde, hasta;
+    private int? rechazo;
+    private string? motivo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var q = Liquidacion.QuincenaActual();
+        (desde, hasta) = (q.Desde, q.Hasta);
+        await base.OnInitializedAsync();
+    }
+
+    protected override Task CargarAsync() => Intentar(async () =>
+    {
+        RevisionSesion? estado = filtro == "Todas" ? null : Enum.Parse<RevisionSesion>(filtro);
+        filas = await Admin.SesionesAsync(estado, filtro == "Pendiente" ? null : new Periodo(desde, hasta), null);
+    });
+
+    private Task Aprobar(int id) => Intentar(async () =>
+    {
+        await RevisionSvc.AprobarAsync(UsuarioId, id);
+        await CargarAsync();
+    });
+
+    private Task Rechazar(int id) => Intentar(async () =>
+    {
+        await RevisionSvc.RechazarAsync(UsuarioId, id, motivo);
+        rechazo = null;
+        await CargarAsync();
+    });
+}

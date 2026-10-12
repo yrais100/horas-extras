@@ -2,6 +2,9 @@ namespace HorasExtras.Domain.Entidades;
 
 public enum EstadoSesion { EnCurso, Pausada, Finalizada }
 
+/// <summary>Revisión del administrador. Solo las horas aprobadas entran en la liquidación.</summary>
+public enum RevisionSesion { Pendiente, Aprobada, Rechazada }
+
 /// <summary>
 /// Una jornada de horas extra. Cada "iniciar" o "continuar" abre un tramo y cada "pausar"
 /// o "finalizar" lo cierra; las pausas no se cuentan.
@@ -9,6 +12,7 @@ public enum EstadoSesion { EnCurso, Pausada, Finalizada }
 public class Sesion
 {
     public const int LargoMaximoNota = 2000;
+    public const int LargoMaximoComentario = 500;
     public const decimal HorasMaximasPorRegistro = 24;
 
     /// <summary>Hora de inicio que se asume cuando se registran horas por cantidad sin indicar la hora.</summary>
@@ -20,6 +24,11 @@ public class Sesion
     /// <summary>Observaciones: qué se hizo durante ese tiempo.</summary>
     public string? Nota { get; private set; }
     public DateTime CreadaEnUtc { get; private set; }
+    public RevisionSesion Revision { get; private set; }
+    /// <summary>Motivo del rechazo, escrito por quien revisó.</summary>
+    public string? ComentarioRevision { get; private set; }
+    public string? RevisadaPor { get; private set; }
+    public DateTime? RevisadaEnUtc { get; private set; }
     public List<Tramo> Tramos { get; private set; } = [];
 
     private Sesion() { }
@@ -67,6 +76,57 @@ public class Sesion
     }
 
     public void CambiarNota(string? nota) => Nota = Limpiar(nota);
+
+    /// <summary>
+    /// Una sesión aprobada queda bloqueada para su dueño; solo el administrador la puede cambiar
+    /// (o rechazarla para que el dueño la corrija).
+    /// </summary>
+    public void ExigirEditablePorDueno(bool esAdmin)
+    {
+        if (Revision == RevisionSesion.Aprobada && !esAdmin)
+            throw new ReglaNegocioException("Este registro ya fue aprobado. Pide al administrador que lo devuelva si necesitas cambiarlo.");
+    }
+
+    /// <summary>
+    /// Tras un cambio del dueño, la sesión vuelve a quedar pendiente de revisión. Las horas del
+    /// administrador no necesitan que otro las apruebe.
+    /// </summary>
+    public void MarcarCambioDelDueno(bool esAdmin, DateTime ahoraUtc)
+    {
+        if (esAdmin) Revisar(RevisionSesion.Aprobada, UsuarioId, ahoraUtc, null);
+        else Revisar(RevisionSesion.Pendiente, null, null, null);
+    }
+
+    public void Aprobar(string revisorId, DateTime ahoraUtc)
+    {
+        ExigirFinalizadaParaRevisar();
+        Revisar(RevisionSesion.Aprobada, revisorId, ahoraUtc, null);
+    }
+
+    public void Rechazar(string revisorId, DateTime ahoraUtc, string? comentario)
+    {
+        ExigirFinalizadaParaRevisar();
+        comentario = comentario?.Trim();
+        if (string.IsNullOrEmpty(comentario))
+            throw new DatosInvalidosException("Escribe el motivo del rechazo para que la persona pueda corregir el registro.");
+        if (comentario.Length > LargoMaximoComentario)
+            throw new DatosInvalidosException($"El motivo no puede superar {LargoMaximoComentario} caracteres.");
+        Revisar(RevisionSesion.Rechazada, revisorId, ahoraUtc, comentario);
+    }
+
+    private void ExigirFinalizadaParaRevisar()
+    {
+        if (Estado != EstadoSesion.Finalizada)
+            throw new ReglaNegocioException("Solo se pueden revisar sesiones finalizadas.");
+    }
+
+    private void Revisar(RevisionSesion revision, string? revisorId, DateTime? enUtc, string? comentario)
+    {
+        Revision = revision;
+        RevisadaPor = revisorId;
+        RevisadaEnUtc = enUtc;
+        ComentarioRevision = comentario;
+    }
 
     public void Pausar(DateTime ahoraUtc)
     {

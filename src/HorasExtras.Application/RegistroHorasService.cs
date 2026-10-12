@@ -4,8 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HorasExtras.Application;
 
-/// <summary>Iniciar, pausar, continuar y finalizar sesiones de horas extra de un usuario.</summary>
-public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider reloj)
+/// <summary>
+/// Iniciar, pausar, continuar y finalizar sesiones de horas extra de un usuario. Lo que registra un
+/// empleado queda pendiente hasta que el administrador lo apruebe; lo del administrador queda aprobado.
+/// </summary>
+public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider reloj, IRolesUsuario roles)
 {
     private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;
 
@@ -22,6 +25,7 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         if (await Abierta(db, usuarioId, ct) is not null)
             throw new Domain.ReglaNegocioException("Ya tienes una sesión abierta. Pausa, continúa o finalízala.");
         var s = Sesion.Iniciar(usuarioId, Ahora, nota);
+        s.MarcarCambioDelDueno(await roles.EsAdminAsync(usuarioId, ct), Ahora);
         db.Sesiones.Add(s);
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
@@ -41,6 +45,7 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         await using var db = fabrica.Crear();
         var s = Sesion.Manual(usuarioId, DateTime.SpecifyKind(input.InicioUtc.ToUniversalTime(), DateTimeKind.Utc),
             DateTime.SpecifyKind(input.FinUtc.ToUniversalTime(), DateTimeKind.Utc), Ahora, input.Nota);
+        s.MarcarCambioDelDueno(await roles.EsAdminAsync(usuarioId, ct), Ahora);
         db.Sesiones.Add(s);
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
@@ -52,6 +57,7 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         var (inicio, fin) = Sesion.IntervaloPorHoras(input.Fecha, input.HoraInicio, input.Horas);
         await using var db = fabrica.Crear();
         var s = Sesion.Manual(usuarioId, inicio, fin, Ahora, input.Nota);
+        s.MarcarCambioDelDueno(await roles.EsAdminAsync(usuarioId, ct), Ahora);
         db.Sesiones.Add(s);
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
@@ -63,7 +69,10 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         var (inicio, fin) = Sesion.IntervaloPorHoras(input.Fecha, input.HoraInicio, input.Horas);
         await using var db = fabrica.Crear();
         var s = await Buscar(db, usuarioId, sesionId, ct);
+        var esAdmin = await roles.EsAdminAsync(usuarioId, ct);
+        s.ExigirEditablePorDueno(esAdmin);
         s.Ajustar(inicio, fin, Ahora, input.Nota);
+        s.MarcarCambioDelDueno(esAdmin, Ahora);
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
     }
@@ -73,7 +82,10 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
     {
         await using var db = fabrica.Crear();
         var s = await Buscar(db, usuarioId, sesionId, ct);
+        var esAdmin = await roles.EsAdminAsync(usuarioId, ct);
+        s.ExigirEditablePorDueno(esAdmin);
         s.CambiarNota(nota);
+        if (s.Revision == RevisionSesion.Rechazada) s.MarcarCambioDelDueno(esAdmin, Ahora);
         await db.SaveChangesAsync(ct);
         return SesionDto.De(s, Ahora);
     }
@@ -93,6 +105,7 @@ public class RegistroHorasService(IAppDbContextFactory fabrica, TimeProvider rel
         await using var db = fabrica.Crear();
         var s = await db.Sesiones.FirstOrDefaultAsync(x => x.Id == sesionId && x.UsuarioId == usuarioId, ct)
             ?? throw new NoEncontradoException("Sesión no encontrada.");
+        s.ExigirEditablePorDueno(await roles.EsAdminAsync(usuarioId, ct));
         db.Sesiones.Remove(s);
         await db.SaveChangesAsync(ct);
     }

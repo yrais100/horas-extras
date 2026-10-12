@@ -17,7 +17,7 @@
 <div class="card mb-3">
     <div class="card-body">
         <h2 class="h6">Registro manual</h2>
-        <p class="small text-body-secondary">Para olvidos o correcciones. Hora de Colombia. El recargo se calcula según el día (ordinario, dominical o festivo) y la franja diurna o nocturna.</p>
+        <p class="small text-body-secondary">Para olvidos o correcciones. Hora de Colombia. El recargo se calcula según el día (ordinario, dominical o festivo) y la franja diurna o nocturna. @(EsAdmin ? "" : "Tus registros suman en la liquidación cuando el administrador los aprueba.")</p>
         <ul class="nav nav-pills nav-sm mb-3">
             <li class="nav-item"><button class="nav-link py-1 @(porIntervalo ? "" : "active")" @onclick="() => porIntervalo = false">Por cantidad de horas</button></li>
             <li class="nav-item"><button class="nav-link py-1 @(porIntervalo ? "active" : "")" @onclick="() => porIntervalo = true">Por hora de inicio y fin</button></li>
@@ -49,7 +49,7 @@
         <h2 class="h6">Sesiones de la quincena</h2>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Observaciones</th><th></th></tr></thead>
+                <thead><tr><th>Inicio</th><th>Fin</th><th class="text-end">Tiempo</th><th>Observaciones</th><th>Revisión</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var s in sesiones)
                     {
@@ -58,15 +58,28 @@
                             <td>@(s.FinUtc is null ? Formato.Nombre(s.Estado) : Formato.HoraLocal(s.FinUtc))</td>
                             <td class="text-end">@Formato.Horas(s.SegundosAcumulados / 3600m)</td>
                             <td class="small text-body-secondary observaciones">@s.Nota</td>
+                            <td>
+                                @if (s.Estado == EstadoSesion.Finalizada)
+                                {
+                                    <span class="badge @Formato.Insignia(s.Revision)">@Formato.Nombre(s.Revision)</span>
+                                }
+                                @if (s.Revision == RevisionSesion.Rechazada && s.ComentarioRevision is not null)
+                                {
+                                    <div class="small text-danger">@s.ComentarioRevision</div>
+                                }
+                            </td>
                             <td class="text-end text-nowrap">
-                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => Editar(s)">Editar</button>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button>
+                                @if (EsAdmin || s.Revision != RevisionSesion.Aprobada)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => Editar(s)">Editar</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button>
+                                }
                             </td>
                         </tr>
                         @if (edicion?.Id == s.Id)
                         {
                             <tr>
-                                <td colspan="5" class="bg-body-tertiary">
+                                <td colspan="6" class="bg-body-tertiary">
                                     <div class="row g-2 py-2">
                                         @if (edicion.SoloNota)
                                         {
@@ -98,7 +111,7 @@
                     }
                     @if (sesiones.Count == 0)
                     {
-                        <tr><td colspan="5" class="text-body-secondary">Sin sesiones en esta quincena.</td></tr>
+                        <tr><td colspan="6" class="text-body-secondary">Sin sesiones en esta quincena.</td></tr>
                     }
                 </tbody>
             </table>

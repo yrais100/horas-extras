@@ -11,11 +11,14 @@ public abstract class PaginaUsuario : ComponentBase
     [CascadingParameter] private Task<AuthenticationState> EstadoAuth { get; set; } = default!;
 
     protected string UsuarioId { get; private set; } = "";
+    protected bool EsAdmin { get; private set; }
     protected string? Error { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        UsuarioId = (await EstadoAuth).User.Id();
+        var usuario = (await EstadoAuth).User;
+        UsuarioId = usuario.Id();
+        EsAdmin = usuario.IsInRole(Infrastructure.AppDbContext.RolAdmin);
         await CargarAsync();
     }
 

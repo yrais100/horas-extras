@@ -1,4 +1,5 @@
 import type {
+  Cuenta,
   Festivo,
   Liquidacion,
   LiquidacionGuardada,
@@ -8,7 +9,9 @@ import type {
   Salario,
   SalarioInput,
   Sesion,
+  SesionUsuario,
   Tokens,
+  UsuarioAdmin,
   ValoresLey,
 } from './tipos';
 
@@ -66,7 +69,8 @@ export async function mensajeDeError(r: Response, ruta: string): Promise<string>
   }
   if (ruta === '/api/auth/login' && r.status === 401) {
     if (cuerpo?.detail === 'LockedOut') return 'La cuenta está bloqueada por varios intentos fallidos. Intenta más tarde.';
-    if (cuerpo?.detail === 'NotAllowed') return 'Esta cuenta todavía no puede iniciar sesión.';
+    if (cuerpo?.detail === 'NotAllowed')
+      return 'Tu cuenta aún no está activa. Un administrador debe aprobarla antes de que puedas ingresar.';
     return 'Correo o clave incorrectos.';
   }
   if (cuerpo?.errors) {
@@ -147,7 +151,11 @@ export class ClienteApi {
   liquidaciones = () => this.pedir<LiquidacionGuardada[]>('GET', '/api/liquidaciones');
   liquidacionGuardada = (id: number) => this.pedir<Liquidacion>('GET', `/api/liquidaciones/${id}`);
 
-  // ---- Perfil ----
+  // ---- Cuenta ----
+
+  cuenta = () => this.pedir<Cuenta>('GET', '/api/cuenta');
+
+  // ---- Perfil (el salario y los recargos solo los cambia el administrador) ----
 
   salarios = () => this.pedir<Salario[]>('GET', '/api/perfil/salarios');
   guardarSalario = (s: SalarioInput) => this.pedir<Salario>('POST', '/api/perfil/salarios', s);
@@ -156,6 +164,16 @@ export class ClienteApi {
   guardarRecargos = (r: Recargos) => this.pedir<Recargos>('PUT', '/api/perfil/recargos', r);
   festivos = (anio: number) => this.pedir<Festivo[]>('GET', `/api/referencia/festivos?anio=${anio}`);
   ley = (fecha?: string) => this.pedir<ValoresLey>('GET', `/api/referencia/ley${fecha ? `?fecha=${fecha}` : ''}`);
+
+  // ---- Administración ----
+
+  usuariosAdmin = () => this.pedir<UsuarioAdmin[]>('GET', '/api/admin/usuarios');
+  aprobarUsuario = (id: string) => this.pedir<void>('POST', `/api/admin/usuarios/${encodeURIComponent(id)}/aprobar`);
+  /** Horas por aprobar de todos los usuarios, sin importar la fecha. */
+  sesionesPorAprobar = () => this.pedir<SesionUsuario[]>('GET', '/api/admin/sesiones');
+  aprobarSesion = (id: number) => this.pedir<Sesion>('POST', `/api/admin/sesiones/${id}/aprobar`);
+  rechazarSesion = (id: number, comentario: string) =>
+    this.pedir<Sesion>('POST', `/api/admin/sesiones/${id}/rechazar`, { comentario: comentario.trim() });
 
   // ---- Infraestructura ----
 

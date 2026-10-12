@@ -1,7 +1,8 @@
 /**
  * Prueba de punta a punta contra una API real. Solo corre si se define HE_API_URL, por ejemplo:
  *   HE_API_URL=http://localhost:5228 npm test -- api.integracion
- * Crea un usuario nuevo en esa base de datos: úsala contra el entorno local, no contra producción.
+ * Crea usuarios nuevos en esa base de datos: úsala contra una base vacía del entorno local (el primer usuario
+ * queda como administrador), no contra producción.
  *
  * @jest-environment node
  */
@@ -51,6 +52,7 @@ describir('API real', () => {
     await api.registrar(email, 'Clave.Segura1');
     await api.ingresar(email, 'Clave.Segura1');
     expect(guardado?.accessToken).toBeTruthy();
+    expect(await api.cuenta()).toMatchObject({ email, estado: 'Activo', esAdmin: true });
 
     // Salario y recargos
     const quincena = quincenaDe(hoy());
@@ -119,5 +121,34 @@ describir('API real', () => {
     guardado = { accessToken: 'x', refreshToken: 'x', venceEn: 0 };
     await expect(api.estado()).rejects.toThrow('Tu sesión expiró');
     expect(guardado).toBeNull();
+  }, 60_000);
+
+  it('deja pendiente a quien se registra después hasta que el administrador lo aprueba', async () => {
+    await api.ingresar(email, 'Clave.Segura1');
+    let tokensEmp: TokensGuardados | null = null;
+    const emp = new ClienteApi({
+      baseUrl: url ?? 'http://localhost',
+      almacen: { leer: async () => tokensEmp, guardar: async (t) => void (tokensEmp = t) },
+      fetch: fetchNode,
+    });
+    const correoEmp = `empleado-${Date.now()}@ejemplo.co`;
+    await emp.registrar(correoEmp, 'Clave.Segura1');
+    await expect(emp.ingresar(correoEmp, 'Clave.Segura1')).rejects.toThrow('aún no está activa');
+
+    const nuevo = (await api.usuariosAdmin()).find((u) => u.email === correoEmp);
+    expect(nuevo?.estado).toBe('Pendiente');
+    await api.aprobarUsuario(nuevo!.id);
+    await emp.ingresar(correoEmp, 'Clave.Segura1');
+    expect((await emp.cuenta()).esAdmin).toBe(false);
+    await expect(emp.guardarSalario({ vigenteDesde: hoy(), salarioMensual: 1, valorHoraManual: null })).rejects.toThrow();
+
+    const ayer = sumarDias(hoy(), -1);
+    const registro = await emp.registrarPorHoras({ fecha: ayer, horas: 1 });
+    expect(registro.revision).toBe('Pendiente');
+    expect((await api.sesionesPorAprobar()).map((x) => x.sesion.id)).toContain(registro.id);
+    expect((await api.rechazarSesion(registro.id, 'Fue media hora')).revision).toBe('Rechazada');
+    await emp.ajustarSesion(registro.id, { fecha: ayer, horas: 0.5 });
+    expect((await api.aprobarSesion(registro.id)).revision).toBe('Aprobada');
+    await expect(emp.eliminarSesion(registro.id)).rejects.toThrow('ya fue aprobado');
   }, 60_000);
 });

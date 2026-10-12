@@ -17,7 +17,10 @@ public record ResultadoLiquidacion(
     int DiasTrabajados,
     IReadOnlyList<DetalleDia> Dias,
     decimal ValorHoraActual,
-    IReadOnlyList<string> Avisos);
+    IReadOnlyList<string> Avisos,
+    // Horas registradas que el administrador aún no revisa: no suman en los totales.
+    decimal HorasPorAprobar = 0,
+    decimal ValorPorAprobar = 0);
 
 public static class Liquidador
 {
@@ -62,7 +65,7 @@ public static class Liquidador
         var valorHora = resolutor.Para(periodo.Hasta).ValorHora;
 
         var avisos = new List<string>();
-        if (valorHora == 0) avisos.Add("Registra tu salario mensual o un valor hora manual para calcular los valores.");
+        if (valorHora == 0) avisos.Add("Falta el salario mensual o un valor hora manual para calcular los valores; lo registra el administrador.");
         avisos.AddRange(dias.Where(d => d.ExcedeLimiteDiario)
             .Select(d => $"El {d.Fecha:dd/MM/yyyy} se registraron {d.Horas:0.##} h extra; la ley fija un máximo de {LimiteDiario} h diarias."));
 

@@ -140,6 +140,10 @@
             Logger.LogWarning("User account locked out.");
             RedirectManager.RedirectTo("Account/Lockout");
         }
+        else if (result.IsNotAllowed)
+        {
+            errorMessage = "Error: tu cuenta aún no está activa. Un administrador debe aprobarla.";
+        }
         else
         {
             errorMessage = "Error: correo o clave incorrectos.";

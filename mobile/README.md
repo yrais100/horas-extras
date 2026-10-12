@@ -5,11 +5,12 @@ solución .NET de este repositorio, así que ve los mismos datos que la web.
 
 | Pantalla | Qué hace |
 |---|---|
-| Ingresar / Crear cuenta | Correo y clave. Los tokens se guardan cifrados en el teléfono (Keychain en iOS, Keystore en Android) con `expo-secure-store` y se renuevan solos. |
+| Ingresar / Crear cuenta | Correo y clave. Una cuenta nueva queda por aprobar hasta que un administrador la apruebe. Los tokens se guardan cifrados en el teléfono (Keychain en iOS, Keystore en Android) con `expo-secure-store` y se renuevan solos. |
 | Hoy | Cronómetro con **Iniciar, Pausar, Continuar y Finalizar**, y el resumen de la quincena actual. |
 | Liquidar | Liquidación de cualquier periodo (por defecto la quincena actual, con botón a la anterior), detalle por día y **Guardar** como histórico. |
-| Historial | **Registro manual** por fecha y cantidad de horas o por inicio y fin, con observaciones; sesiones de la quincena con opción de editar (ajuste de horas y observaciones) o eliminar, y liquidaciones guardadas. |
-| Salario | Salario con fecha de vigencia, y recargos según la ley o manuales. También cierra la sesión. |
+| Historial | **Registro manual** por fecha y cantidad de horas o por inicio y fin, con observaciones; sesiones de la quincena con su estado (por aprobar, aprobada o rechazada con el motivo) y opción de editar o eliminar mientras no estén aprobadas, y liquidaciones guardadas. |
+| Salario | Salario con fecha de vigencia, y recargos según la ley o manuales (solo el administrador los cambia). También cierra la sesión. |
+| Revisar | Solo para administradores: aprobar cuentas nuevas y aprobar o rechazar horas de todos. |
 
 Todas las fechas y horas se muestran en hora de Colombia, aunque el teléfono esté en otra zona horaria.
 

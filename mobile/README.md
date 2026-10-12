@@ -8,7 +8,7 @@ solución .NET de este repositorio, así que ve los mismos datos que la web.
 | Ingresar / Crear cuenta | Correo y clave. Los tokens se guardan cifrados en el teléfono (Keychain en iOS, Keystore en Android) con `expo-secure-store` y se renuevan solos. |
 | Hoy | Cronómetro con **Iniciar, Pausar, Continuar y Finalizar**, y el resumen de la quincena actual. |
 | Liquidar | Liquidación de cualquier periodo (por defecto la quincena actual, con botón a la anterior), detalle por día y **Guardar** como histórico. |
-| Historial | **Registro manual** (para olvidos), sesiones de la quincena con opción de eliminar y liquidaciones guardadas. |
+| Historial | **Registro manual** por fecha y cantidad de horas o por inicio y fin, con observaciones; sesiones de la quincena con opción de editar (ajuste de horas y observaciones) o eliminar, y liquidaciones guardadas. |
 | Salario | Salario con fecha de vigencia, y recargos según la ley o manuales. También cierra la sesión. |
 
 Todas las fechas y horas se muestran en hora de Colombia, aunque el teléfono esté en otra zona horaria.

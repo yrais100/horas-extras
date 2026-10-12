@@ -8,7 +8,7 @@
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { ClienteApi, type AlmacenTokens, type TokensGuardados } from '../api';
-import { hoy, quincenaDe } from '../tiempo';
+import { hoy, quincenaDe, sumarDias } from '../tiempo';
 
 // jest-expo reemplaza fetch por un sustituto sin red; aquí basta un fetch mínimo con node:http.
 const fetchNode = ((destino: string, init: RequestInit = {}) =>
@@ -80,6 +80,16 @@ describir('API real', () => {
     await expect(api.registrarManual(finManual, new Date(finManual.getTime() - 1), '')).rejects.toThrow(
       'El fin debe ser posterior al inicio.',
     );
+
+    // Registro por cantidad de horas (ayer, desde las 6:00 p. m.), ajuste y observaciones
+    const ayer = sumarDias(hoy(), -1);
+    const ph = await api.registrarPorHoras({ fecha: ayer, horas: 1.5, nota: 'Cierre de inventario' });
+    expect(ph).toMatchObject({ segundosAcumulados: 5400, nota: 'Cierre de inventario' });
+    const aj = await api.ajustarSesion(ph.id, { fecha: ayer, horaInicio: '08:00:00', horas: 2, nota: 'Soporte' });
+    expect(aj).toMatchObject({ segundosAcumulados: 7200, nota: 'Soporte' });
+    expect((await api.cambiarNota(ph.id, '')).nota).toBeNull();
+    await expect(api.registrarPorHoras({ fecha: ayer, horas: 0 })).rejects.toThrow('Las horas deben ser mayores que cero.');
+    await api.eliminarSesion(ph.id);
 
     const sesiones = await api.sesiones();
     expect(sesiones.map((x) => x.id)).toEqual(expect.arrayContaining([fin.id, m.id]));

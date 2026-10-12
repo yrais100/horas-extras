@@ -35,6 +35,12 @@ public static class HorasExtrasApi
         sesiones.MapPost("/finalizar", (RegistroHorasService s, ClaimsPrincipal u, CancellationToken ct) => s.FinalizarAsync(u.Id(), ct));
         sesiones.MapPost("/", (RegistroHorasService s, ClaimsPrincipal u, RegistroManualInput body, CancellationToken ct) =>
             s.RegistrarManualAsync(u.Id(), body, ct));
+        sesiones.MapPost("/por-horas", (RegistroHorasService s, ClaimsPrincipal u, RegistroPorHorasInput body, CancellationToken ct) =>
+            s.RegistrarPorHorasAsync(u.Id(), body, ct));
+        sesiones.MapPut("/{id:int}", (RegistroHorasService s, ClaimsPrincipal u, int id, RegistroPorHorasInput body, CancellationToken ct) =>
+            s.AjustarAsync(u.Id(), id, body, ct));
+        sesiones.MapPut("/{id:int}/nota", (RegistroHorasService s, ClaimsPrincipal u, int id, NotaInput body, CancellationToken ct) =>
+            s.CambiarNotaAsync(u.Id(), id, body.Nota, ct));
         sesiones.MapGet("/", (RegistroHorasService s, LiquidacionService l, ClaimsPrincipal u, DateOnly? desde, DateOnly? hasta, CancellationToken ct) =>
             s.ListarAsync(u.Id(), Periodo(l, desde, hasta), ct));
         sesiones.MapDelete("/{id:int}", async (RegistroHorasService s, ClaimsPrincipal u, int id, CancellationToken ct) =>

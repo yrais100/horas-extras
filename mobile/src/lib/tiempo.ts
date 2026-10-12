@@ -1,4 +1,4 @@
-import type { Fecha, Periodo } from './tipos';
+import type { Fecha, Festivo, Periodo } from './tipos';
 
 // Colombia no tiene horario de verano: siempre UTC-5, igual que ZonaHoraria.cs en el servidor.
 export const ZONA = 'America/Bogota';
@@ -97,4 +97,15 @@ export function minutosDeHora(h: string): number {
 /** Minutos desde la medianoche → "19:00:00", el formato TimeOnly que espera la API. */
 export function horaDeMinutos(min: number): string {
   return `${dos(Math.floor(min / 60) % 24)}:${dos(min % 60)}:00`;
+}
+
+/** Hora de inicio que asume el servidor cuando se registran horas por cantidad (Sesion.HoraInicioPorDefecto). */
+export const HORA_INICIO_POR_DEFECTO = 18 * 60;
+
+/** Cómo se liquida esa fecha: ordinaria, o con recargo dominical/festivo. */
+export function tipoDeDia(f: Fecha, festivos: Festivo[]): string {
+  const festivo = festivos.find((x) => x.fecha === f);
+  if (festivo) return `Festivo (${festivo.nombre}): recargo dominical/festivo.`;
+  const { anio, mes, dia } = partesFecha(f);
+  return new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay() === 0 ? 'Domingo: recargo dominical/festivo.' : 'Día ordinario.';
 }

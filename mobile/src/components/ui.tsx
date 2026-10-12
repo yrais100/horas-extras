@@ -116,11 +116,11 @@ export function Boton({
   );
 }
 
-export function Campo({ etiqueta, ...props }: { etiqueta: string } & TextInputProps) {
+export function Campo({ etiqueta, style, ...props }: { etiqueta: string } & TextInputProps) {
   return (
     <View style={estilos.campo}>
       <Text style={estilos.etiqueta}>{etiqueta}</Text>
-      <TextInput placeholderTextColor="#98a2b3" style={estilos.entrada} {...props} />
+      <TextInput placeholderTextColor="#98a2b3" style={[estilos.entrada, style]} {...props} />
     </View>
   );
 }

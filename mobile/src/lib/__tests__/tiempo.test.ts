@@ -10,6 +10,7 @@ import {
   quincenaAnterior,
   quincenaDe,
   sumarDias,
+  tipoDeDia,
 } from '../tiempo';
 
 describe('tiempo (hora de Colombia, UTC-5)', () => {
@@ -30,6 +31,13 @@ describe('tiempo (hora de Colombia, UTC-5)', () => {
     expect(fechaDe(new Date('2026-10-09T04:59:00Z'))).toBe('2026-10-08');
     expect(fechaDe(new Date('2026-10-09T05:00:00Z'))).toBe('2026-10-09');
     expect(hoy(new Date('2026-10-09T03:00:00Z'))).toBe('2026-10-08');
+  });
+
+  it('dice si una fecha es ordinaria, domingo o festivo', () => {
+    const festivos = [{ fecha: '2026-10-12', nombre: 'Día de la Raza' }];
+    expect(tipoDeDia('2026-10-08', festivos)).toBe('Día ordinario.');
+    expect(tipoDeDia('2026-10-11', festivos)).toMatch(/^Domingo/);
+    expect(tipoDeDia('2026-10-12', festivos)).toMatch(/^Festivo \(Día de la Raza\)/);
   });
 
   it('el mediodía de una fecha conserva el día', () => {

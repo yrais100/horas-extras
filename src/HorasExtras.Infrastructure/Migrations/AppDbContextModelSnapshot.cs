@@ -152,8 +152,8 @@ namespace HorasExtras.Infrastructure.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<string>("Nota")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("UsuarioId")
                         .IsRequired()

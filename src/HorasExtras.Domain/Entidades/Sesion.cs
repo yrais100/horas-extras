@@ -8,10 +8,17 @@ public enum EstadoSesion { EnCurso, Pausada, Finalizada }
 /// </summary>
 public class Sesion
 {
+    public const int LargoMaximoNota = 2000;
+    public const decimal HorasMaximasPorRegistro = 24;
+
+    /// <summary>Hora de inicio que se asume cuando se registran horas por cantidad sin indicar la hora.</summary>
+    public static readonly TimeOnly HoraInicioPorDefecto = new(18, 0);
+
     public int Id { get; private set; }
     public string UsuarioId { get; private set; } = "";
     public EstadoSesion Estado { get; private set; }
-    public string? Nota { get; set; }
+    /// <summary>Observaciones: qué se hizo durante ese tiempo.</summary>
+    public string? Nota { get; private set; }
     public DateTime CreadaEnUtc { get; private set; }
     public List<Tramo> Tramos { get; private set; } = [];
 
@@ -19,7 +26,7 @@ public class Sesion
 
     public static Sesion Iniciar(string usuarioId, DateTime ahoraUtc, string? nota = null)
     {
-        var s = new Sesion { UsuarioId = usuarioId, Estado = EstadoSesion.EnCurso, Nota = nota, CreadaEnUtc = ahoraUtc };
+        var s = new Sesion { UsuarioId = usuarioId, Estado = EstadoSesion.EnCurso, Nota = Limpiar(nota), CreadaEnUtc = ahoraUtc };
         s.Tramos.Add(new Tramo(ahoraUtc));
         return s;
     }
@@ -27,12 +34,39 @@ public class Sesion
     /// <summary>Registro manual de un intervalo ya trabajado (olvidos o correcciones).</summary>
     public static Sesion Manual(string usuarioId, DateTime inicioUtc, DateTime finUtc, DateTime ahoraUtc, string? nota)
     {
-        if (finUtc <= inicioUtc) throw new DatosInvalidosException("El fin debe ser posterior al inicio.");
-        if (finUtc > ahoraUtc) throw new DatosInvalidosException("No se pueden registrar horas en el futuro.");
-        var s = new Sesion { UsuarioId = usuarioId, Estado = EstadoSesion.Finalizada, Nota = nota ?? "Registro manual", CreadaEnUtc = ahoraUtc };
+        ValidarIntervalo(inicioUtc, finUtc, ahoraUtc);
+        var s = new Sesion { UsuarioId = usuarioId, Estado = EstadoSesion.Finalizada, Nota = Limpiar(nota) ?? "Registro manual", CreadaEnUtc = ahoraUtc };
         s.Tramos.Add(new Tramo(inicioUtc) { FinUtc = finUtc });
         return s;
     }
+
+    /// <summary>
+    /// Intervalo en UTC para una cantidad de horas trabajadas en una fecha, empezando a la hora indicada
+    /// (hora de Colombia). La liquidación clasifica después esas horas según el día y la franja.
+    /// </summary>
+    public static (DateTime inicioUtc, DateTime finUtc) IntervaloPorHoras(DateOnly fecha, TimeOnly? horaInicio, decimal horas)
+    {
+        if (horas <= 0) throw new DatosInvalidosException("Las horas deben ser mayores que cero.");
+        if (horas > HorasMaximasPorRegistro)
+            throw new DatosInvalidosException($"Un registro no puede superar {HorasMaximasPorRegistro} horas.");
+        var minutos = (int)Math.Round(horas * 60);
+        if (minutos == 0) throw new DatosInvalidosException("Las horas deben ser mayores que cero.");
+        var inicio = ZonaHoraria.AUtc(fecha.ToDateTime(horaInicio ?? HoraInicioPorDefecto));
+        return (inicio, inicio.AddMinutes(minutos));
+    }
+
+    /// <summary>Ajuste manual de una sesión finalizada: queda como un solo tramo con el nuevo intervalo.</summary>
+    public void Ajustar(DateTime inicioUtc, DateTime finUtc, DateTime ahoraUtc, string? nota)
+    {
+        if (Estado != EstadoSesion.Finalizada)
+            throw new ReglaNegocioException("Solo se pueden ajustar sesiones finalizadas. Finaliza la sesión primero.");
+        ValidarIntervalo(inicioUtc, finUtc, ahoraUtc);
+        Tramos.Clear();
+        Tramos.Add(new Tramo(inicioUtc) { FinUtc = finUtc });
+        CambiarNota(nota);
+    }
+
+    public void CambiarNota(string? nota) => Nota = Limpiar(nota);
 
     public void Pausar(DateTime ahoraUtc)
     {
@@ -61,6 +95,21 @@ public class Sesion
 
     public TimeSpan Duracion(DateTime ahoraUtc) =>
         Tramos.Aggregate(TimeSpan.Zero, (t, x) => t + ((x.FinUtc ?? ahoraUtc) - x.InicioUtc));
+
+    private static void ValidarIntervalo(DateTime inicioUtc, DateTime finUtc, DateTime ahoraUtc)
+    {
+        if (finUtc <= inicioUtc) throw new DatosInvalidosException("El fin debe ser posterior al inicio.");
+        if (finUtc > ahoraUtc) throw new DatosInvalidosException("No se pueden registrar horas en el futuro.");
+    }
+
+    private static string? Limpiar(string? nota)
+    {
+        nota = nota?.Trim();
+        if (string.IsNullOrEmpty(nota)) return null;
+        if (nota.Length > LargoMaximoNota)
+            throw new DatosInvalidosException($"Las observaciones no pueden superar {LargoMaximoNota} caracteres.");
+        return nota;
+    }
 
     private void CerrarTramo(DateTime ahoraUtc)
     {

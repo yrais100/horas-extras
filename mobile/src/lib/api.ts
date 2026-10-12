@@ -1,8 +1,10 @@
 import type {
+  Festivo,
   Liquidacion,
   LiquidacionGuardada,
   Periodo,
   Recargos,
+  RegistroPorHoras,
   Salario,
   SalarioInput,
   Sesion,
@@ -129,6 +131,12 @@ export class ClienteApi {
       finUtc: finUtc.toISOString(),
       nota: nota || null,
     });
+  /** Horas trabajadas en una fecha; el servidor calcula el recargo según el día y la franja. */
+  registrarPorHoras = (r: RegistroPorHoras) => this.pedir<Sesion>('POST', '/api/sesiones/por-horas', cuerpoPorHoras(r));
+  /** Ajuste manual de una sesión finalizada (queda como un solo bloque). */
+  ajustarSesion = (id: number, r: RegistroPorHoras) => this.pedir<Sesion>('PUT', `/api/sesiones/${id}`, cuerpoPorHoras(r));
+  cambiarNota = (id: number, nota: string) =>
+    this.pedir<Sesion>('PUT', `/api/sesiones/${id}/nota`, { nota: nota.trim() || null });
   sesiones = (p?: Periodo) => this.pedir<Sesion[]>('GET', `/api/sesiones${consulta(p)}`);
   eliminarSesion = (id: number) => this.pedir<void>('DELETE', `/api/sesiones/${id}`);
 
@@ -146,6 +154,7 @@ export class ClienteApi {
   eliminarSalario = (id: number) => this.pedir<void>('DELETE', `/api/perfil/salarios/${id}`);
   recargos = () => this.pedir<Recargos>('GET', '/api/perfil/recargos');
   guardarRecargos = (r: Recargos) => this.pedir<Recargos>('PUT', '/api/perfil/recargos', r);
+  festivos = (anio: number) => this.pedir<Festivo[]>('GET', `/api/referencia/festivos?anio=${anio}`);
   ley = (fecha?: string) => this.pedir<ValoresLey>('GET', `/api/referencia/ley${fecha ? `?fecha=${fecha}` : ''}`);
 
   // ---- Infraestructura ----
@@ -234,6 +243,10 @@ export class ClienteApi {
       clearTimeout(reloj);
     }
   }
+}
+
+function cuerpoPorHoras(r: RegistroPorHoras) {
+  return { fecha: r.fecha, horaInicio: r.horaInicio ?? null, horas: r.horas, nota: r.nota?.trim() || null };
 }
 
 function consulta(p?: Periodo): string {

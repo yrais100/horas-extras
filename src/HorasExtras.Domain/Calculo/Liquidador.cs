@@ -7,6 +7,13 @@ public record TotalCategoria(Categoria Categoria, decimal Horas, decimal Valor);
 public record DetalleDia(DateOnly Fecha, bool DominicalOFestivo, decimal HorasDiurnas, decimal HorasNocturnas,
     decimal Horas, decimal Valor, bool ExcedeLimiteDiario);
 
+/// <summary>
+/// Un registro (sesión) de la liquidación con lo que aporta al periodo: sus horas por categoría, su valor y
+/// las observaciones de lo que se hizo. <see cref="Revision"/> indica si suma (aprobado) o aún no.
+/// </summary>
+public record DetalleRegistro(int SesionId, DateTime? InicioUtc, DateTime? FinUtc, bool EnCurso, string? Nota,
+    RevisionSesion Revision, IReadOnlyList<TotalCategoria> Categorias, decimal Horas, decimal Valor);
+
 public record ResultadoLiquidacion(
     DateOnly Desde,
     DateOnly Hasta,
@@ -20,7 +27,9 @@ public record ResultadoLiquidacion(
     IReadOnlyList<string> Avisos,
     // Horas registradas que el administrador aún no revisa: no suman en los totales.
     decimal HorasPorAprobar = 0,
-    decimal ValorPorAprobar = 0);
+    decimal ValorPorAprobar = 0,
+    // Registros que componen la liquidación (aprobados y por aprobar). Las guardadas antes de este campo no lo traen.
+    IReadOnlyList<DetalleRegistro>? Registros = null);
 
 public static class Liquidador
 {

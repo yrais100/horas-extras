@@ -12,6 +12,9 @@ using Microsoft.EntityFrameworkCore;
 // Moneda y fechas en formato colombiano ($ 1.234.567, "jue 8 oct").
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo("es-CO");
 
+// Licencia comunitaria de QuestPDF (gratuita para personas y empresas con ingresos anuales menores a USD 1 millón).
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents()
@@ -74,6 +77,7 @@ builder.Services.AddIdentityCore<Usuario>(options =>
 
 builder.Services.AddScoped<IUserConfirmation<Usuario>, CuentaActiva>();
 builder.Services.AddScoped<AdministracionService>();
+builder.Services.AddScoped<ReportesService>();
 builder.Services.AddSingleton<IEmailSender<Usuario>, IdentityNoOpEmailSender>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();

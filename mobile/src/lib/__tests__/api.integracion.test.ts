@@ -105,6 +105,13 @@ describir('API real', () => {
     expect((await api.liquidaciones())[0].id).toBe(g.id);
     expect((await api.liquidacionGuardada(g.id)).valorTotal).toBe(g.valorTotal);
 
+    // Reporte PDF: enlace firmado que se abre sin token
+    const pdf = await api.urlPdfLiquidacion(g.id);
+    expect(pdf.startsWith(`${api.baseUrl}/api/descargas/liquidacion/`)).toBe(true);
+    const descarga = await fetchNode(pdf);
+    expect(descarga.status).toBe(200);
+    expect(descarga.headers.get('content-type')).toBe('application/pdf');
+
     // Borrado
     await api.eliminarSesion(m.id);
     await expect(api.eliminarSesion(m.id)).rejects.toThrow('Sesión no encontrada.');

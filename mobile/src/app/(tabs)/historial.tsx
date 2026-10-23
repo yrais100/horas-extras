@@ -4,6 +4,7 @@ import { SelectorFecha, SelectorFechaHora, SelectorHora } from '../../components
 import { Aviso, Boton, Campo, colores, Fila, Pantalla, Suave, Tarjeta } from '../../components/ui';
 import type { ClienteApi } from '../../lib/api';
 import { fecha, fechaHoraLocal, horaLocal, horas, leerNumero, nombreEstado, pesos } from '../../lib/formato';
+import { abrirPdfLiquidacion } from '../../lib/reporte';
 import { useSesion } from '../../lib/sesion';
 import { aColombia, fechaDe, HORA_INICIO_POR_DEFECTO, horaDeMinutos, hoy, leerUtc, tipoDeDia } from '../../lib/tiempo';
 import type { Festivo, Revision, Sesion } from '../../lib/tipos';
@@ -138,6 +139,18 @@ export default function Historial() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [editando, setEditando] = useState<number | null>(null);
+  const [abriendoPdf, setAbriendoPdf] = useState<number | null>(null);
+
+  const descargarPdf = async (id: number) => {
+    setAbriendoPdf(id);
+    try {
+      await abrirPdfLiquidacion(api, id);
+    } catch (err) {
+      setError(mensajeDe(err));
+    } finally {
+      setAbriendoPdf(null);
+    }
+  };
 
   const agregar = async () => {
     setMensaje(null);
@@ -280,6 +293,7 @@ export default function Historial() {
               <Text style={e.principal}>{pesos(l.valorTotal)}</Text>
               <Suave>{horas(l.horasTotales)}</Suave>
             </View>
+            <Boton titulo="PDF" variante="secundario" onPress={() => descargarPdf(l.id)} ocupado={abriendoPdf === l.id} />
           </View>
         ))}
       </Tarjeta>

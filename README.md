@@ -59,7 +59,10 @@ Para probar con PostgreSQL, como en producción: `docker compose up --build` y a
 3. Cada trozo se valora con **el salario vigente ese día** dividido por las horas mensuales, o con el valor
    hora manual si el usuario lo ingresó, más el recargo de su categoría.
 4. Se puede liquidar en cualquier momento: la sesión abierta se cuenta hasta ese instante. Guardar una
-   liquidación congela el resultado como histórico.
+   liquidación congela el resultado como histórico y permite bajar un **reporte PDF** con el resumen, cada
+   registro (horario, horas por recargo, valor, estado) con las observaciones de lo realizado, y el detalle
+   por día. El PDF se vuelve a descargar desde el historial y siempre sale igual, porque se arma con el
+   detalle congelado. Lo genera el servidor con QuestPDF (licencia comunitaria).
 
 ### Salario por usuario
 
@@ -100,6 +103,8 @@ Las rutas actúan sobre el usuario del token; nadie ve las horas de otro, salvo 
 | `PUT /api/sesiones/{id}/nota` | Observaciones de un registro (también de la sesión en curso) |
 | `GET /api/liquidacion?desde=&hasta=` | Liquidación en vivo (por defecto, la quincena actual) |
 | `POST /api/liquidaciones` · `GET /api/liquidaciones` · `GET /api/liquidaciones/{id}` | Guardar y consultar liquidaciones |
+| `GET /api/liquidaciones/{id}/pdf` | Reporte PDF de una liquidación guardada |
+| `POST /api/liquidaciones/{id}/enlace-pdf` | Enlace firmado (5 min) para abrir el PDF en el navegador del teléfono, sin token |
 | `GET /api/cuenta` | Correo, estado de la cuenta y si es administrador |
 | `GET/POST /api/perfil/salarios` · `DELETE /api/perfil/salarios/{id}` | Salario con historial (cambiarlo: solo administrador) |
 | `GET/PUT /api/perfil/recargos` | Modo ley o manual, franjas y porcentajes (cambiarlos: solo administrador) |

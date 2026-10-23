@@ -1,3 +1,4 @@
+using HorasExtras.Domain.Calculo;
 using HorasExtras.Domain.Entidades;
 
 namespace HorasExtras.Application;
@@ -36,3 +37,5 @@ public record RecargosDto(ModoRecargos Modo, TimeOnly InicioNocturno, TimeOnly F
 }
 
 public record LiquidacionGuardadaDto(int Id, DateOnly Desde, DateOnly Hasta, DateTime CreadaEnUtc, decimal HorasTotales, decimal ValorTotal);
+
+public record LiquidacionReporte(LiquidacionGuardadaDto Guardada, ResultadoLiquidacion Detalle);

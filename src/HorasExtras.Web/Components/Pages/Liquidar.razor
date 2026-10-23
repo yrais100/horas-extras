@@ -27,7 +27,13 @@
 }
 @if (mensaje is not null)
 {
-    <div class="alert alert-success">@mensaje</div>
+    <div class="alert alert-success d-flex flex-wrap align-items-center gap-2">
+        <span class="me-auto">@mensaje</span>
+        @if (guardada is not null)
+        {
+            <a class="btn btn-sm btn-success" href="@Formato.RutaPdf(guardada.Id)" target="_blank" download>Descargar reporte PDF</a>
+        }
+    </div>
 }
 
 @if (resultado is not null)
@@ -76,6 +82,7 @@
     private DateOnly desde, hasta;
     private ResultadoLiquidacion? resultado;
     private string? mensaje;
+    private LiquidacionGuardadaDto? guardada;
 
     protected override Task CargarAsync()
     {
@@ -94,12 +101,13 @@
     private Task Calcular()
     {
         mensaje = null;
+        guardada = null;
         return Intentar(async () => resultado = await Liquidacion.CalcularAsync(UsuarioId, new Periodo(desde, hasta)));
     }
 
     private Task Guardar() => Intentar(async () =>
     {
-        await Liquidacion.GuardarAsync(UsuarioId, new Periodo(desde, hasta));
-        mensaje = "Liquidación guardada. La encuentras en Historial.";
+        guardada = await Liquidacion.GuardarAsync(UsuarioId, new Periodo(desde, hasta));
+        mensaje = "Liquidación guardada. La encuentras en Historial, donde también puedes volver a bajar el reporte.";
     });
 }

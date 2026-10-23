@@ -62,6 +62,21 @@ public static class HorasExtrasApi
             l.GuardarAsync(u.Id(), Periodo(l, body?.Desde, body?.Hasta), ct));
         liq.MapGet("/", (LiquidacionService l, ClaimsPrincipal u, CancellationToken ct) => l.HistorialAsync(u.Id(), ct));
         liq.MapGet("/{id:int}", (LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) => l.DetalleGuardadoAsync(u.Id(), id, ct));
+        // Reporte en PDF. La web lo descarga con su cookie; la app móvil pide un enlace firmado y lo abre en el navegador.
+        liq.MapGet("/{id:int}/pdf", async (ReportesService r, ClaimsPrincipal u, int id, CancellationToken ct) =>
+            Pdf(await r.LiquidacionAsync(u.Id(), id, ct)));
+        liq.MapPost("/{id:int}/enlace-pdf", async (ReportesService r, LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) =>
+        {
+            await l.ReporteAsync(u.Id(), id, ct); // 404 si no es suya
+            // Ruta relativa: detrás del proxy de Azure el esquema y el host que ve el servidor no son los públicos.
+            var ruta = $"/api/descargas/liquidacion/{Uri.EscapeDataString(r.FirmarEnlace(u.Id(), id))}";
+            return new EnlaceDto(ruta, DateTime.UtcNow + ReportesService.VigenciaEnlace);
+        });
+        app.MapGet("/api/descargas/liquidacion/{token}", async (ReportesService r, string token, CancellationToken ct) =>
+            r.LeerEnlace(token) is var (usuarioId, id)
+                ? Pdf(await r.LiquidacionAsync(usuarioId, id, ct))
+                : Results.Problem("El enlace de descarga venció o no es válido. Vuelve a pedirlo desde la app.", statusCode: StatusCodes.Status410Gone))
+            .AllowAnonymous().AddEndpointFilter(TraducirErrores).WithTags("Liquidación");
 
         // El salario y los recargos los define el administrador; cada usuario solo los consulta.
         var perfil = api.MapGroup("/perfil").WithTags("Perfil");
@@ -140,6 +155,8 @@ public static class HorasExtrasApi
             r.RechazarAsync(u.Id(), id, body.Comentario, ct));
     }
 
+    private static IResult Pdf(ArchivoPdf a) => Results.File(a.Contenido, "application/pdf", a.Nombre);
+
     private static Periodo? Periodo(LiquidacionService l, DateOnly? desde, DateOnly? hasta)
     {
         if (desde is null && hasta is null) return null;
@@ -174,6 +191,8 @@ public static class HorasExtrasApi
 }
 
 public record NotaInput(string? Nota);
+
+public record EnlaceDto(string Ruta, DateTime VenceEnUtc);
 
 public record PeriodoInput(DateOnly? Desde, DateOnly? Hasta);
 

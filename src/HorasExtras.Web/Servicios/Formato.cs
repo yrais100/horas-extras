@@ -20,6 +20,9 @@ public static class Formato
 
     public static string Fecha(DateOnly f) => f.ToString("ddd d MMM");
 
+    /// <summary>Descarga del reporte de una liquidación guardada (la web la pide con su cookie).</summary>
+    public static string RutaPdf(int liquidacionId) => $"/api/liquidaciones/{liquidacionId}/pdf";
+
     public static string Nombre(Categoria c) => c switch
     {
         Categoria.Diurna => "Extra diurna",

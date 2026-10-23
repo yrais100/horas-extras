@@ -124,7 +124,7 @@
         <h2 class="h6">Liquidaciones guardadas</h2>
         <div class="table-responsive">
             <table class="table table-sm mb-0">
-                <thead><tr><th>Periodo</th><th>Guardada</th><th class="text-end">Horas</th><th class="text-end">Valor</th></tr></thead>
+                <thead><tr><th>Periodo</th><th>Guardada</th><th class="text-end">Horas</th><th class="text-end">Valor</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var l in liquidaciones)
                     {
@@ -133,11 +133,12 @@
                             <td>@Formato.FechaHoraLocal(l.CreadaEnUtc)</td>
                             <td class="text-end">@Formato.Horas(l.HorasTotales)</td>
                             <td class="text-end">@Formato.Pesos(l.ValorTotal)</td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="@Formato.RutaPdf(l.Id)" target="_blank" download>PDF</a></td>
                         </tr>
                     }
                     @if (liquidaciones.Count == 0)
                     {
-                        <tr><td colspan="4" class="text-body-secondary">Aún no has guardado liquidaciones.</td></tr>
+                        <tr><td colspan="5" class="text-body-secondary">Aún no has guardado liquidaciones.</td></tr>
                     }
                 </tbody>
             </table>

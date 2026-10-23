@@ -6,8 +6,9 @@ import { SelectorFecha } from '../../components/Selectores';
 import { Aviso, Boton, colores, Fila, Pantalla, Suave, Tarjeta } from '../../components/ui';
 import { fecha, horas, pesos } from '../../lib/formato';
 import { useSesion } from '../../lib/sesion';
+import { abrirPdfLiquidacion } from '../../lib/reporte';
 import { hoy, quincenaAnterior, quincenaDe } from '../../lib/tiempo';
-import type { Liquidacion, Periodo } from '../../lib/tipos';
+import type { Liquidacion, LiquidacionGuardada, Periodo } from '../../lib/tipos';
 import { mensajeDe } from '../../lib/useCarga';
 
 export default function Liquidar() {
@@ -18,6 +19,8 @@ export default function Liquidar() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [guardada, setGuardada] = useState<LiquidacionGuardada | null>(null);
+  const [abriendoPdf, setAbriendoPdf] = useState(false);
   const ultimo = useRef(periodo);
 
   const calcular = useCallback(
@@ -25,6 +28,7 @@ export default function Liquidar() {
       ultimo.current = p;
       setPeriodo(p);
       setMensaje(null);
+      setGuardada(null);
       setCargando(true);
       try {
         setResultado(await api.liquidacion(p));
@@ -48,13 +52,24 @@ export default function Liquidar() {
   const guardar = async () => {
     setGuardando(true);
     try {
-      await api.guardarLiquidacion(periodo);
-      setMensaje('Liquidación guardada. La encuentras en Historial.');
+      setGuardada(await api.guardarLiquidacion(periodo));
+      setMensaje('Liquidación guardada. La encuentras en Historial, donde también puedes volver a bajar el reporte.');
       setError(null);
     } catch (e) {
       setError(mensajeDe(e));
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const descargarPdf = async (id: number) => {
+    setAbriendoPdf(true);
+    try {
+      await abrirPdfLiquidacion(api, id);
+    } catch (e) {
+      setError(mensajeDe(e));
+    } finally {
+      setAbriendoPdf(false);
     }
   };
 
@@ -74,6 +89,9 @@ export default function Liquidar() {
 
       {error ? <Aviso tipo="error">{error}</Aviso> : null}
       {mensaje ? <Aviso tipo="exito">{mensaje}</Aviso> : null}
+      {guardada ? (
+        <Boton titulo="Descargar reporte PDF" variante="exito" onPress={() => descargarPdf(guardada.id)} ocupado={abriendoPdf} />
+      ) : null}
 
       {resultado ? (
         <>

@@ -150,6 +150,7 @@ export class ClienteApi {
   guardarLiquidacion = (p?: Periodo) => this.pedir<LiquidacionGuardada>('POST', '/api/liquidaciones', p ?? {});
   liquidaciones = () => this.pedir<LiquidacionGuardada[]>('GET', '/api/liquidaciones');
   liquidacionGuardada = (id: number) => this.pedir<Liquidacion>('GET', `/api/liquidaciones/${id}`);
+  eliminarLiquidacion = (id: number) => this.pedir<void>('DELETE', `/api/liquidaciones/${id}`);
   /**
    * Dirección para abrir en el navegador el reporte PDF de una liquidación guardada. El navegador no lleva
    * el token, así que el servidor entrega un enlace firmado que vence a los pocos minutos.

@@ -149,6 +149,16 @@ public class ApiTests : IClassFixture<Fabrica>
         Assert.Equal(30_000m, guardada.GetProperty("valorTotal").GetDecimal());
         Assert.Equal(1, (await Json(await ana.GetAsync("/api/liquidaciones"))).GetArrayLength());
 
+        // Una liquidación desactualizada se puede borrar; solo su dueña puede hacerlo.
+        var repetida = await Json(await ana.PostAsJsonAsync("/api/liquidaciones", new { }));
+        var idRepetida = repetida.GetProperty("id").GetInt32();
+        Assert.Equal(HttpStatusCode.NotFound, (await beto.DeleteAsync($"/api/liquidaciones/{idRepetida}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await ana.DeleteAsync($"/api/liquidaciones/{idRepetida}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await ana.GetAsync($"/api/liquidaciones/{idRepetida}")).StatusCode);
+        var restantes = await Json(await ana.GetAsync("/api/liquidaciones"));
+        Assert.Equal(1, restantes.GetArrayLength());
+        Assert.Equal(guardada.GetProperty("id").GetInt32(), restantes[0].GetProperty("id").GetInt32());
+
         // Solo la administradora ve el resumen de todos.
         Assert.Equal(HttpStatusCode.Forbidden, (await beto.GetAsync("/api/admin/usuarios")).StatusCode);
         Assert.Equal(2, (await Json(await ana.GetAsync("/api/admin/usuarios"))).GetArrayLength());

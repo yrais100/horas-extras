@@ -62,6 +62,11 @@ public static class HorasExtrasApi
             l.GuardarAsync(u.Id(), Periodo(l, body?.Desde, body?.Hasta), ct));
         liq.MapGet("/", (LiquidacionService l, ClaimsPrincipal u, CancellationToken ct) => l.HistorialAsync(u.Id(), ct));
         liq.MapGet("/{id:int}", (LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) => l.DetalleGuardadoAsync(u.Id(), id, ct));
+        liq.MapDelete("/{id:int}", async (LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) =>
+        {
+            await l.EliminarAsync(u.Id(), id, ct);
+            return Results.NoContent();
+        });
         // Reporte en PDF. La web lo descarga con su cookie; la app móvil pide un enlace firmado y lo abre en el navegador.
         liq.MapGet("/{id:int}/pdf", async (ReportesService r, ClaimsPrincipal u, int id, CancellationToken ct) =>
             Pdf(await r.LiquidacionAsync(u.Id(), id, ct)));

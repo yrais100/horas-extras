@@ -51,6 +51,19 @@ public class LiquidacionService(IAppDbContextFactory fabrica, TimeProvider reloj
         return JsonSerializer.Deserialize<ResultadoLiquidacion>(l.DetalleJson)!;
     }
 
+    /// <summary>
+    /// Borra una liquidación guardada del dueño. Las horas no quedan marcadas al liquidar, así que siguen
+    /// disponibles para volver a guardar el periodo.
+    /// </summary>
+    public async Task EliminarAsync(string usuarioId, int id, CancellationToken ct = default)
+    {
+        await using var db = fabrica.Crear();
+        var l = await db.Liquidaciones.FirstOrDefaultAsync(x => x.Id == id && x.UsuarioId == usuarioId, ct)
+            ?? throw new NoEncontradoException("Liquidación no encontrada.");
+        db.Liquidaciones.Remove(l);
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Liquidación guardada con su detalle congelado, para el reporte en PDF.</summary>
     public async Task<LiquidacionReporte> ReporteAsync(string usuarioId, int id, CancellationToken ct = default)
     {

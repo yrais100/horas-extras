@@ -97,6 +97,9 @@ describe('ClienteApi', () => {
     expect(await api.eliminarSesion(3)).toBeUndefined();
     expect(auth(llamadas[0])).toBe('Bearer a');
     expect(llamadas[1].url).toBe('http://api/api/sesiones/3');
+    expect(await api.eliminarLiquidacion(5)).toBeUndefined();
+    expect(llamadas[2].init.method).toBe('DELETE');
+    expect(llamadas[2].url).toBe('http://api/api/liquidaciones/5');
   });
 
   it('registra por cantidad de horas, ajusta y cambia observaciones', async () => {

@@ -204,6 +204,29 @@ export default function Historial() {
       },
     ]);
 
+  const eliminarLiquidacion = (id: number, descripcion: string) =>
+    Alert.alert(
+      'Eliminar liquidación',
+      `¿Eliminar la liquidación ${descripcion}? No se puede deshacer. Las horas siguen registradas y puedes volver a liquidar el periodo.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            let fallo: string | null = null;
+            try {
+              await api.eliminarLiquidacion(id);
+            } catch (e) {
+              fallo = mensajeDe(e);
+            }
+            await recargar();
+            if (fallo) setError(fallo);
+          },
+        },
+      ],
+    );
+
   return (
     <Pantalla cargando={cargando} alRecargar={recargar}>
       {error ? <Aviso tipo="error">{error}</Aviso> : null}
@@ -293,7 +316,16 @@ export default function Historial() {
               <Text style={e.principal}>{pesos(l.valorTotal)}</Text>
               <Suave>{horas(l.horasTotales)}</Suave>
             </View>
-            <Boton titulo="PDF" variante="secundario" onPress={() => descargarPdf(l.id)} ocupado={abriendoPdf === l.id} />
+            <View style={{ gap: 6 }}>
+              <Boton titulo="PDF" variante="secundario" onPress={() => descargarPdf(l.id)} ocupado={abriendoPdf === l.id} />
+              <Boton
+                titulo="Eliminar"
+                variante="peligroBorde"
+                onPress={() =>
+                  eliminarLiquidacion(l.id, `del ${fecha(l.desde)} – ${fecha(l.hasta)} guardada el ${fechaHoraLocal(l.creadaEnUtc)}`)
+                }
+              />
+            </View>
           </View>
         ))}
       </Tarjeta>

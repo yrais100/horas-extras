@@ -133,8 +133,23 @@
                             <td>@Formato.FechaHoraLocal(l.CreadaEnUtc)</td>
                             <td class="text-end">@Formato.Horas(l.HorasTotales)</td>
                             <td class="text-end">@Formato.Pesos(l.ValorTotal)</td>
-                            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="@Formato.RutaPdf(l.Id)" target="_blank" download>PDF</a></td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-outline-secondary" href="@Formato.RutaPdf(l.Id)" target="_blank" download>PDF</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => liquidacionPorEliminar = l.Id">Eliminar</button>
+                            </td>
                         </tr>
+                        @if (liquidacionPorEliminar == l.Id)
+                        {
+                            <tr>
+                                <td colspan="5" class="bg-body-tertiary">
+                                    <div class="d-flex flex-wrap align-items-center gap-2 py-1">
+                                        <span class="small">¿Eliminar la liquidación del @Formato.Fecha(l.Desde) – @Formato.Fecha(l.Hasta) guardada el @Formato.FechaHoraLocal(l.CreadaEnUtc)? No se puede deshacer. Las horas siguen registradas y puedes volver a liquidar el periodo.</span>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(l.Id)">Sí, eliminar</button>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => liquidacionPorEliminar = null">Cancelar</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
                     }
                     @if (liquidaciones.Count == 0)
                     {
@@ -154,6 +169,7 @@
     private PorHoras manual = new();
     private string? manualNota;
     private Edicion? edicion;
+    private int? liquidacionPorEliminar;
 
     private DateOnly Hoy => ZonaHoraria.Hoy(Reloj);
 
@@ -244,6 +260,13 @@
     private Task Eliminar(int id) => Intentar(async () =>
     {
         await Registro.EliminarAsync(UsuarioId, id);
+        await CargarAsync();
+    });
+
+    private Task EliminarLiquidacion(int id) => Intentar(async () =>
+    {
+        liquidacionPorEliminar = null;
+        await Liquidacion.EliminarAsync(UsuarioId, id);
         await CargarAsync();
     });
 }

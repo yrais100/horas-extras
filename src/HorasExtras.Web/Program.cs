@@ -6,6 +6,7 @@ using HorasExtras.Web.Components;
 using HorasExtras.Web.Components.Account;
 using HorasExtras.Web.Servicios;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -57,6 +58,13 @@ builder.Services.AddAuthorizationBuilder()
         .RequireRole(AppDbContext.RolAdmin));
 
 builder.Services.AddInfraestructura(builder.Configuration);
+
+// Las llaves que firman cookies, tokens y enlaces de PDF se guardan en la base de datos: en hostings con
+// contenedores efímeros (Render, Cloud Run...) el disco se borra en cada reinicio y, sin esto, todos
+// quedarían con la sesión cerrada y los enlaces de PDF dejarían de servir.
+builder.Services.AddDataProtection()
+    .SetApplicationName("HorasExtras")
+    .PersistKeysToDbContext<AppDbContext>();
 builder.Services.AddAplicacion();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

@@ -1,0 +1,19 @@
+# Blueprint de Render (https://render.com/docs/blueprint-spec): servicio web gratuito construido con el Dockerfile.
+# Pasos en docs/despliegue-render.md. La base de datos sigue en Supabase.
+services:
+  - type: web
+    name: horasextras
+    runtime: docker
+    plan: free
+    # Virginia (EE. UU. Este): la más cercana a Colombia y a Supabase us-east-1.
+    # Si el proyecto de Supabase está en otra región, elige la de Render más cercana.
+    region: virginia
+    branch: main
+    dockerfilePath: ./Dockerfile
+    # Despliega cada push a main solo cuando el CI de GitHub pasa.
+    autoDeployTrigger: checksPass
+    envVars:
+      # Cadena del Session pooler de Supabase en formato Npgsql; Render la pide al crear el Blueprint.
+      # Host=aws-0-<región>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<ref>;Password=<clave>;SSL Mode=Require
+      - key: ConnectionStrings__Default
+        sync: false

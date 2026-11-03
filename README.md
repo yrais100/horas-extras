@@ -124,7 +124,14 @@ negocio (por ejemplo, pausar sin sesión abierta). Las rutas de `/api` nunca red
 El plan gratuito de Azure App Service dejó de estar disponible para este proyecto, así que el despliegue de
 pruebas pasa a **Render** (plan Free, sin tarjeta) con la misma base de datos de Supabase. Render construye
 el `Dockerfile` según `render.yaml` y despliega cada push a `main` cuando el CI pasa. Pasos, límites del plan
-gratuito y una alternativa con Google Cloud Run en [docs/despliegue-render.md](docs/despliegue-render.md).
+gratuito en [docs/despliegue-render.md](docs/despliegue-render.md).
+
+## Despliegue en Google Cloud Run (pruebas)
+
+Para comparar, la misma imagen se despliega también en **Google Cloud Run** (capa gratuita, pide tarjeta)
+con la misma base de datos. GitHub Actions construye el `Dockerfile` y lo despliega cuando el CI pasa en
+`main` (`.github/workflows/desplegar-cloud-run.yml`); `scripts/desplegar-cloud-run.sh` prepara el proyecto
+de Google Cloud una sola vez. Pasos en [docs/despliegue-cloud-run.md](docs/despliegue-cloud-run.md).
 
 ## Despliegue en Azure con Supabase (anterior)
 

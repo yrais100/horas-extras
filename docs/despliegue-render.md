@@ -47,12 +47,8 @@ Desde ahí, cada push a `main` se despliega solo **cuando el CI de GitHub pasa**
   `/salud` cada 10 minutos lo mantiene despierto y, de paso, evita que Supabase se pause. Con un solo
   servicio las 750 horas alcanzan.
 
-## Si Render no sirve: Google Cloud Run
+## Google Cloud Run (segunda plataforma)
 
-El mismo `Dockerfile` corre en Cloud Run sin cambios (usa la variable `PORT` que Cloud Run define). Su
-capa gratuita mensual (180.000 vCPU-segundos, 360.000 GiB-segundos y 2 millones de solicitudes) sobra
-para pruebas y despierta en segundos, no en un minuto. A cambio, **pide una cuenta de facturación con
-tarjeta** y conviene ponerle una alerta de presupuesto. Pasos resumidos: crear el proyecto, activar Cloud
-Run, *Deploy container → Continuously deploy from a repository* con este repositorio y el `Dockerfile`,
-permitir acceso sin autenticación, y definir la variable `ConnectionStrings__Default` (mejor como secreto
-de Secret Manager). Pon un máximo de 1 instancia para que nunca se pase de la capa gratuita.
+El mismo `Dockerfile` también se despliega en Google Cloud Run, que despierta en segundos pero pide
+tarjeta. Las dos plataformas pueden estar encendidas a la vez con la misma base de datos. Pasos en
+[despliegue-cloud-run.md](despliegue-cloud-run.md).

@@ -119,7 +119,14 @@ En desarrollo la especificación OpenAPI está en `/openapi/v1.json`. Los errore
 `ProblemDetails`: 400 datos inválidos, 401 sin sesión o token vencido, 404 no encontrado, 409 regla de
 negocio (por ejemplo, pausar sin sesión abierta). Las rutas de `/api` nunca redirigen a la página de ingreso.
 
-## Despliegue en Azure con Supabase
+## Despliegue gratuito en Render (pruebas)
+
+El plan gratuito de Azure App Service dejó de estar disponible para este proyecto, así que el despliegue de
+pruebas pasa a **Render** (plan Free, sin tarjeta) con la misma base de datos de Supabase. Render construye
+el `Dockerfile` según `render.yaml` y despliega cada push a `main` cuando el CI pasa. Pasos, límites del plan
+gratuito y una alternativa con Google Cloud Run en [docs/despliegue-render.md](docs/despliegue-render.md).
+
+## Despliegue en Azure con Supabase (anterior)
 
 1. **Base de datos (Supabase):** en *Connect* copia la cadena del **Session pooler** (puerto 5432; la
    conexión directa solo funciona por IPv6 y App Service no lo soporta) y pásala a formato Npgsql:
@@ -141,8 +148,9 @@ mismo mensaje sale en *Supervisión → Secuencia de registro* del App Service.
 Notas del plan gratuito: F1 apaga la aplicación tras ~20 minutos sin uso (la primera visita después tarda
 unos segundos) y Supabase gratuito pausa el proyecto tras una semana sin actividad.
 
-Alternativa: la imagen del `Dockerfile` corre en cualquier servicio de contenedores (Azure Container Apps,
-Railway, un VPS) con la misma variable `ConnectionStrings__Default`.
+Alternativa: la imagen del `Dockerfile` corre en cualquier servicio de contenedores (Render, Cloud Run,
+Azure Container Apps, Railway, un VPS) con la misma variable `ConnectionStrings__Default`; escucha en el
+puerto de la variable `PORT` o en 8080.
 
 Para la app móvil, agrega su origen en `Cors:Origenes` solo si la vas a usar desde un navegador (Expo
 web); las apps nativas no lo necesitan.

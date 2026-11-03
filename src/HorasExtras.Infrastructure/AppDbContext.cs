@@ -1,12 +1,13 @@
 using HorasExtras.Application;
 using HorasExtras.Domain.Entidades;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace HorasExtras.Infrastructure;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<Usuario>(options), IAppDbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<Usuario>(options), IAppDbContext, IDataProtectionKeyContext
 {
     public const string RolAdmin = "Admin";
     public const string RolAdminNormalizado = "ADMIN";
@@ -21,6 +22,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<SalarioUsuario> Salarios => Set<SalarioUsuario>();
     public DbSet<ConfiguracionRecargos> Recargos => Set<ConfiguracionRecargos>();
     public DbSet<Liquidacion> Liquidaciones => Set<Liquidacion>();
+
+    /// <summary>
+    /// Llaves de ASP.NET Core Data Protection. Firman la cookie de sesión, los tokens de la app móvil y los
+    /// enlaces de los PDF; se guardan en la base para que sobrevivan a reinicios del contenedor.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {

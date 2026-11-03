@@ -1,0 +1,60 @@
+# Despliega en Google Cloud Run cuando el CI pasa en main (o a mano con "Run workflow").
+# Pasos en docs/despliegue-cloud-run.md. Requiere en el repositorio:
+#   - variable  GCP_PROJECT_ID   (id del proyecto de Google Cloud)
+#   - variable  GCP_REGION       (opcional; por defecto us-east4)
+#   - secreto   GCP_CREDENTIALS  (llave JSON de la cuenta de servicio github-despliegue)
+# Sin GCP_PROJECT_ID el workflow se salta, así que no afecta el despliegue en Render.
+name: Desplegar en Cloud Run
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: desplegar-cloud-run
+  cancel-in-progress: false
+
+env:
+  REGION: ${{ vars.GCP_REGION || 'us-east4' }}
+  SERVICIO: horasextras
+
+jobs:
+  desplegar:
+    if: >-
+      vars.GCP_PROJECT_ID != '' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Construir y subir la imagen
+        id: imagen
+        run: |
+          IMAGEN="$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/horasextras/web:${{ github.event.workflow_run.head_sha || github.sha }}"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build -t "$IMAGEN" .
+          docker push "$IMAGEN"
+          echo "imagen=$IMAGEN" >> "$GITHUB_OUTPUT"
+
+      # Mismos parámetros que scripts/desplegar-cloud-run.sh: si cambias uno, cambia el otro.
+      - name: Desplegar
+        run: |
+          gcloud run deploy "$SERVICIO" --image "${{ steps.imagen.outputs.imagen }}" --region "$REGION" \
+            --allow-unauthenticated --port 8080 --memory 512Mi --cpu 1 \
+            --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity --cpu-boost \
+            --set-secrets "ConnectionStrings__Default=horasextras-db:latest" --quiet
+          URL=$(gcloud run services describe "$SERVICIO" --region "$REGION" --format 'value(status.url)')
+          echo "Servicio en $URL" >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS --retry 5 --retry-delay 10 --retry-all-errors "$URL/salud"

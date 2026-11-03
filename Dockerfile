@@ -1,6 +1,6 @@
 # Imagen de la aplicación (web Blazor + API). Sirve igual para Render, Google Cloud Run, Azure Container Apps,
 # Koyeb o Railway: todos construyen este Dockerfile y le pasan la cadena de conexión por variable de entorno
-# (ConnectionStrings__Default). Ver docs/despliegue-render.md.
+# (ConnectionStrings__Default). Ver docs/despliegue-render.md y docs/despliegue-cloud-run.md.
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src

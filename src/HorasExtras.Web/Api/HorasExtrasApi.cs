@@ -73,7 +73,7 @@ public static class HorasExtrasApi
         liq.MapPost("/{id:int}/enlace-pdf", async (ReportesService r, LiquidacionService l, ClaimsPrincipal u, int id, CancellationToken ct) =>
         {
             await l.ReporteAsync(u.Id(), id, ct); // 404 si no es suya
-            // Ruta relativa: detrás del proxy de Azure el esquema y el host que ve el servidor no son los públicos.
+            // Ruta relativa: detrás del proxy del hosting el esquema y el host que ve el servidor no son los públicos.
             var ruta = $"/api/descargas/liquidacion/{Uri.EscapeDataString(r.FirmarEnlace(u.Id(), id))}";
             return new EnlaceDto(ruta, DateTime.UtcNow + ReportesService.VigenciaEnlace);
         });

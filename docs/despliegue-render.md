@@ -38,9 +38,6 @@ Desde ahí, cada push a `main` se despliega solo **cuando el CI de GitHub pasa**
 
 - **App móvil:** en la pantalla de ingreso cambia el servidor a la nueva URL. Para que quede por defecto,
   actualiza `extra.apiUrl` en `mobile/app.json` y `SERVIDOR_PRODUCCION` en `mobile/src/lib/config.ts`.
-- **Azure:** si ya no lo vas a usar, borra la variable `AZURE_WEBAPP_NAME` en GitHub (*Settings → Secrets
-  and variables → Actions → Variables*). Así el workflow *Desplegar en Azure* se salta y no falla en cada
-  push.
 - **Supabase gratuito pausa el proyecto tras 7 días sin actividad.** Si `/salud` dice que la base no
   responde, entra a Supabase y dale *Restore project*.
 - Opcional, para evitar la espera al despertar: un monitor gratuito (por ejemplo UptimeRobot) que visite

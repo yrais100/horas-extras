@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-HorasExtras_Web-7879f2ad-210e-49d9-a1d9-0ee56837ba32</UserSecretsId>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- El SDK solo descarga blazor.web.js (paquete Microsoft.AspNetCore.App.Internal.Assets) si al restaurar
+         ve archivos .razor. El Dockerfile restaura copiando solo los .csproj, así que sin esta línea la imagen
+         sale sin _framework/blazor.web.js (404) y la web carga pero no responde a ningún clic. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
   <ItemGroup>

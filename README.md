@@ -133,30 +133,21 @@ con la misma base de datos. GitHub Actions construye el `Dockerfile` y lo despli
 `main` (`.github/workflows/desplegar-cloud-run.yml`); `scripts/desplegar-cloud-run.sh` prepara el proyecto
 de Google Cloud una sola vez. Pasos en [docs/despliegue-cloud-run.md](docs/despliegue-cloud-run.md).
 
-## Despliegue en Azure con Supabase (anterior)
+## Base de datos (Supabase)
 
-1. **Base de datos (Supabase):** en *Connect* copia la cadena del **Session pooler** (puerto 5432; la
-   conexión directa solo funciona por IPv6 y App Service no lo soporta) y pásala a formato Npgsql:
-   `Host=aws-0-<region>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<ref>;Password=<clave>;SSL Mode=Require;Maximum Pool Size=10`
-2. **App Service:** Linux, pila **.NET 10**. En *Configuración → Cadenas de conexión* agrega una de
-   nombre `Default` y tipo `PostgreSQL` con la cadena anterior (equivale a la variable
-   `ConnectionStrings__Default`).
-3. **Despliegue desde GitHub:** en el App Service activa *Configuración → Credenciales de publicación
-   básica de SCM*, descarga el perfil de publicación y, en el repositorio de GitHub, crea la variable
-   `AZURE_WEBAPP_NAME` y el secreto `AZURE_WEBAPP_PUBLISH_PROFILE`. Cada push a `main` corre las pruebas
-   y despliega (`.github/workflows/desplegar-azure.yml`).
-4. **Migraciones:** se aplican solas al arrancar la aplicación. Las tablas quedan en el esquema
-   `horasextras`, no en `public`, porque Supabase expone `public` por su API REST.
+En *Connect* copia la cadena del **Session pooler** (puerto 5432; la conexión directa solo funciona por
+IPv6) y pásala a formato Npgsql:
+`Host=aws-0-<region>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<ref>;Password=<clave>;SSL Mode=Require;Maximum Pool Size=10`
 
-**Si la app no abre:** visita `https://<tu-app>.azurewebsites.net/salud`. Responde `{"estado":"ok"}` o el
-error exacto de la base de datos (cadena faltante, clave incorrecta, usuario del pooler mal escrito). El
-mismo mensaje sale en *Supervisión → Secuencia de registro* del App Service.
+Las migraciones se aplican solas al arrancar. Las tablas quedan en el esquema `horasextras`, no en
+`public`, porque Supabase expone `public` por su API REST.
 
-Notas del plan gratuito: F1 apaga la aplicación tras ~20 minutos sin uso (la primera visita después tarda
-unos segundos) y Supabase gratuito pausa el proyecto tras una semana sin actividad.
+**Si la app no abre:** visita `https://<tu-url>/salud`. Responde `{"estado":"ok"}` o el error exacto de la
+base de datos (cadena faltante, clave incorrecta, usuario del pooler mal escrito). Supabase gratuito pausa
+el proyecto tras una semana sin actividad.
 
 Alternativa: la imagen del `Dockerfile` corre en cualquier servicio de contenedores (Render, Cloud Run,
-Azure Container Apps, Railway, un VPS) con la misma variable `ConnectionStrings__Default`; escucha en el
+Railway, un VPS) con la misma variable `ConnectionStrings__Default`; escucha en el
 puerto de la variable `PORT` o en 8080.
 
 Para la app móvil, agrega su origen en `Cors:Origenes` solo si la vas a usar desde un navegador (Expo

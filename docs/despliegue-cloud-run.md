@@ -76,9 +76,9 @@ dejes pestañas abiertas días enteros.
 
 ## Tareas comunes
 
-- **Cambiar la cadena de Supabase:**
-  `printf '%s' '<cadena nueva>' | gcloud secrets versions add horasextras-db --data-file=-` y vuelve a
-  desplegar (el servicio lee la versión `latest` al arrancar).
+- **Cambiar la cadena de Supabase:** `./scripts/desplegar-cloud-run.sh cadena`. Pide la cadena sin
+  mostrarla, revisa que no tenga partes del ejemplo (`<region>`, `<clave>`) ni esté pegada dos veces, la
+  guarda como versión nueva del secreto y reinicia el servicio para que la lea.
 - **Ver los registros:** *Cloud Run → horasextras → Registros* en la consola, o
   `gcloud run services logs read horasextras --region us-east4`.
 - **Apagar Cloud Run y quedarse solo con Render:** borra la variable `GCP_PROJECT_ID` en GitHub (el

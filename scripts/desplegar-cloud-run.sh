@@ -4,6 +4,7 @@
 #
 #   ./scripts/desplegar-cloud-run.sh preparar   # una sola vez: APIs, repositorio de imágenes, secreto y cuenta para GitHub
 #   ./scripts/desplegar-cloud-run.sh desplegar  # construye el Dockerfile en Cloud Build y despliega
+#   ./scripts/desplegar-cloud-run.sh cadena     # cambia la cadena de Supabase y reinicia el servicio
 #
 # Variables opcionales: GCP_PROJECT_ID (por defecto, el proyecto activo de gcloud), GCP_REGION (us-east4),
 # SERVICIO (horasextras).
@@ -24,6 +25,46 @@ gcloud config set project "$PROYECTO" >/dev/null
 NUMERO=$(gcloud projects describe "$PROYECTO" --format='value(projectNumber)')
 # Cloud Run ejecuta el contenedor con la cuenta de servicio predeterminada de Compute Engine.
 CUENTA_EJECUCION="${NUMERO}-compute@developer.gserviceaccount.com"
+
+# Pide la cadena de Supabase sin mostrarla y la deja en $CADENA. Rechaza los errores típicos: dejar
+# <region> o <clave> del ejemplo, pegarla dos veces o pegar la URI postgresql:// sin convertir.
+leer_cadena() {
+  while true; do
+    echo "Pega la cadena de Supabase en formato Npgsql y presiona Enter (no se muestra):"
+    read -rs CADENA
+    echo
+    CADENA="$(printf '%s' "$CADENA" | tr -d '\r\n')"
+    local error=""
+    case "$CADENA" in
+      postgres://*|postgresql://*) error="es la URI de Supabase; conviértela al formato Host=...;Port=...;Username=...;Password=..." ;;
+      *"<"*|*">"*|*"["*"]"*) error="todavía tiene partes del ejemplo, como <region>, <ref>, <clave> o [YOUR-PASSWORD]" ;;
+    esac
+    if [ -z "$error" ] && [ "$(printf '%s' "$CADENA" | grep -o 'Host=' | wc -l)" -ne 1 ]; then
+      error="debe tener Host= exactamente una vez (¿la pegaste dos veces?)"
+    fi
+    if [ -z "$error" ]; then
+      for campo in Host= Port= Username= Password=; do
+        case "$CADENA" in *"$campo"*) ;; *) error="le falta $campo" ;; esac
+      done
+    fi
+    [ -z "$error" ] && return 0
+    echo "La cadena no sirve: $error. Inténtalo de nuevo." >&2
+  done
+}
+
+cadena() {
+  echo "==> Nueva versión del secreto $SECRETO"
+  leer_cadena
+  printf '%s' "$CADENA" | gcloud secrets versions add "$SECRETO" --data-file=-
+  if gcloud run services describe "$SERVICIO" --region "$REGION" >/dev/null 2>&1; then
+    echo "==> Reiniciando $SERVICIO para que lea la cadena nueva"
+    gcloud run services update "$SERVICIO" --region "$REGION" \
+      --update-secrets "ConnectionStrings__Default=$SECRETO:latest"
+    local url
+    url=$(gcloud run services describe "$SERVICIO" --region "$REGION" --format 'value(status.url)')
+    echo "Comprueba: $url/salud   (debe responder {\"estado\":\"ok\"})"
+  fi
+}
 
 preparar() {
   echo "==> Activando APIs (Cloud Run, Artifact Registry, Cloud Build, Secret Manager)"
@@ -50,11 +91,10 @@ JSON
 
   echo "==> Secreto $SECRETO (cadena de conexión de Supabase)"
   if ! gcloud secrets describe "$SECRETO" >/dev/null 2>&1; then
-    echo "Pega la cadena de Supabase en formato Npgsql y presiona Enter (no se muestra):"
-    read -rs CADENA
+    leer_cadena
     printf '%s' "$CADENA" | gcloud secrets create "$SECRETO" --replication-policy automatic --data-file=-
   else
-    echo "Ya existe. Para cambiarla: printf '%s' '<cadena>' | gcloud secrets versions add $SECRETO --data-file=-"
+    echo "Ya existe. Para cambiarla: ./scripts/desplegar-cloud-run.sh cadena"
   fi
   gcloud secrets add-iam-policy-binding "$SECRETO" \
     --member "serviceAccount:$CUENTA_EJECUCION" --role roles/secretmanager.secretAccessor >/dev/null
@@ -105,5 +145,6 @@ desplegar() {
 case "${1:-}" in
   preparar) preparar ;;
   desplegar) desplegar ;;
-  *) echo "Uso: $0 preparar | desplegar" >&2; exit 1 ;;
+  cadena) cadena ;;
+  *) echo "Uso: $0 preparar | desplegar | cadena" >&2; exit 1 ;;
 esac
